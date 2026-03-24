@@ -59,7 +59,7 @@ def main() -> int:
     for scene_dir in scene_dirs:
         aggregate["scene_count"] += 1
         target_scene_dir = _map_scene_dir(scene_dir, input_path, output_root)
-        if args.skip-existing and (target_scene_dir / "final_samples.jsonl").exists():
+        if args.skip_existing and (target_scene_dir / "final_samples.jsonl").exists():
             aggregate["skipped_scene_count"] += 1
             continue
 
