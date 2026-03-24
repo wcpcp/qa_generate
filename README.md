@@ -156,7 +156,6 @@ python3 data_generation/scripts/build_training_data.py \
 
 这一步会导出：
 
-- `postprocess_plan.json`   这个是非常全的，包括jobs，summary，和一些其他统计
 - `postprocess_jobs.jsonl`
 - `summary.json`
 ‘’‘
@@ -218,10 +217,6 @@ python3 data_generation/scripts/build_training_data.py \
 - `final_samples.jsonl`
 
 ## 当前输出文件含义
-
-### `postprocess_plan.json`
-
-记录本次后处理策略、抽样结果、哪些样本直通、哪些样本进入模型。
 
 ### `postprocess_jobs.jsonl`
 

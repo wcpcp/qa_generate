@@ -34,14 +34,13 @@ def read_jsonl(input_path: str) -> List[Dict[str, Any]]:
 def export_scene_bundle(bundle: Dict[str, Any], output_dir: str) -> List[str]:
     # 导出单 scene 的统一产物。
     # 这里默认只保留“这一步新增且真正有用”的文件，
-    # 不再重复保存已经可以通过其他独立脚本单独导出的 scene_plan / canonical_samples。
+    # 不再重复保存已经可以通过其他独立脚本单独导出的 scene_plan / canonical_samples / postprocess_plan。
     output_path = Path(output_dir)
     scene_dir = output_path / bundle["scene_id"]
     scene_dir.mkdir(parents=True, exist_ok=True)
 
     written: List[str] = []
     for name, payload in [
-        ("postprocess_plan.json", bundle["postprocess_plan"]),
         ("summary.json", bundle["summary"]),
     ]:
         target = scene_dir / name
@@ -81,7 +80,6 @@ def export_scene_bundle_to_path(bundle: Dict[str, Any], scene_dir: str) -> List[
 
     written: List[str] = []
     for name, payload in [
-        ("postprocess_plan.json", bundle["postprocess_plan"]),
         ("summary.json", bundle["summary"]),
     ]:
         target = scene_path / name

@@ -106,7 +106,6 @@
 
 - `scene_plan.json`
 - `canonical_samples.jsonl`
-- `postprocess_plan.json`
 - `postprocess_jobs.jsonl`
 - `postprocess_execution.json`
 - `final_samples.jsonl`
