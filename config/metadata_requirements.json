@@ -1,0 +1,177 @@
+{
+  "raw_input_contract": {
+    "scene_required": [
+      "scene_id",
+      "image_path",
+      "entities"
+    ],
+    "entity_required": [
+      "entity_id",
+      "bbox_erp",
+      "mask_rle",
+      "lon_lat",
+      "semantic.identify",
+      "semantic.attributes",
+      "semantic.caption_brief",
+      "semantic.reground_query"
+    ]
+  },
+  "runtime_contract": {
+    "level_a_base": {
+      "scene_fields": [
+        "scene_id",
+        "erp_image_path",
+        "erp_width",
+        "erp_height",
+        "entities"
+      ],
+      "entity_fields": [
+        "entity_id",
+        "bbox_erp",
+        "mask_rle",
+        "lon_lat",
+        "semantic.identify",
+        "semantic.attributes",
+        "semantic.caption_brief",
+        "semantic.reground_query"
+      ]
+    },
+    "level_b_optional": {
+      "scene_fields": [
+        "scene_global_tags",
+        "depth_map_path"
+      ],
+      "entity_fields": [
+        "entity_center_depth",
+        "seam_crossing_flag",
+        "pole_proximity_flag",
+        "entity_xyz_camera"
+      ]
+    },
+    "level_c_advanced": {
+      "scene_fields": [
+        "room_layout_proxy",
+        "free_space_map",
+        "openings"
+      ],
+      "entity_fields": [
+        "entity_extent_3d"
+      ]
+    }
+  },
+  "task_requirements": {
+    "caption": {
+      "minimum_tier": "level_a_base",
+      "requires": [
+        "entities[].semantic.identify"
+      ],
+      "preferred": [
+        "entities[].semantic.attributes",
+        "entities[].semantic.caption_brief",
+        "entities[].semantic.reground_query",
+        "entities[].bbox_erp"
+      ]
+    },
+    "existence": {
+      "minimum_tier": "level_a_base",
+      "requires": [
+        "entities"
+      ]
+    },
+    "counting": {
+      "minimum_tier": "level_a_base",
+      "requires": [
+        "entities"
+      ]
+    },
+    "grounding": {
+      "minimum_tier": "level_a_base",
+      "requires": [
+        "entities[].bbox_erp",
+        "entities[].mask_rle",
+        "entities[].semantic.reground_query"
+      ]
+    },
+    "scene_understanding": {
+      "minimum_tier": "level_b_optional",
+      "requires_any": [
+        "scene_global_tags",
+        "entity_summary"
+      ]
+    },
+    "direct_direction": {
+      "minimum_tier": "level_a_base",
+      "requires": [
+        "entities[].lon_lat"
+      ]
+    },
+    "relative_direction": {
+      "minimum_tier": "level_a_base",
+      "requires": [
+        "entities[].lon_lat"
+      ]
+    },
+    "view_transform": {
+      "minimum_tier": "level_a_base",
+      "requires": [
+        "entities[].lon_lat"
+      ]
+    },
+    "distance_estimation": {
+      "minimum_tier": "level_b_optional",
+      "requires": [
+        "entities[].entity_center_depth"
+      ]
+    },
+    "relative_3d_position": {
+      "minimum_tier": "level_b_optional",
+      "requires": [
+        "entities[].entity_center_depth",
+        "entities[].lon_lat"
+      ],
+      "preferred": [
+        "entities[].entity_xyz_camera"
+      ]
+    },
+    "seam_continuity": {
+      "minimum_tier": "level_b_optional",
+      "requires": [
+        "entities[].bbox_erp"
+      ],
+      "preferred": [
+        "entities[].seam_crossing_flag"
+      ]
+    },
+    "polar_distortion_awareness": {
+      "minimum_tier": "level_b_optional",
+      "requires": [
+        "entities[].lon_lat",
+        "entities[].bbox_erp"
+      ],
+      "preferred": [
+        "entities[].semantic.attributes",
+        "entities[].pole_proximity_flag"
+      ]
+    },
+    "cognitive_map_understanding": {
+      "minimum_tier": "level_c_advanced",
+      "requires": [
+        "room_layout_proxy",
+        "free_space_map"
+      ]
+    },
+    "hps_path_selection": {
+      "minimum_tier": "level_c_advanced",
+      "requires": [
+        "free_space_map",
+        "openings"
+      ]
+    },
+    "rotation_consistency": {
+      "minimum_tier": "level_a_base",
+      "requires": [
+        "entities[].lon_lat"
+      ]
+    }
+  }
+}

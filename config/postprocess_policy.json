@@ -1,0 +1,65 @@
+{
+  "default_repackage_probability": 0.4,
+  "task_policies": {
+    "counting": {
+      "mode": "counting_visual_correct",
+      "repackage_probability": 1.0,
+      "requires_visual": true,
+      "fallback_policy": "filter"
+    },
+    "existence": {
+      "mode": "existence_repackage",
+      "repackage_probability": 0.4,
+      "requires_visual": false,
+      "fallback_policy": "use_canonical"
+    },
+    "grounding": {
+      "mode": "grounding_repackage",
+      "repackage_probability": 0.4,
+      "requires_visual": false,
+      "fallback_policy": "use_canonical"
+    },
+    "direct_direction": {
+      "mode": "direct_direction_repackage",
+      "repackage_probability": 0.4,
+      "requires_visual": false,
+      "fallback_policy": "use_canonical"
+    },
+    "relative_direction": {
+      "mode": "relative_direction_repackage",
+      "repackage_probability": 0.4,
+      "requires_visual": false,
+      "fallback_policy": "use_canonical"
+    },
+    "view_transform": {
+      "mode": "view_transform_repackage",
+      "repackage_probability": 0.4,
+      "requires_visual": false,
+      "fallback_policy": "use_canonical"
+    },
+    "distance_estimation": {
+      "mode": "distance_estimation_repackage",
+      "repackage_probability": 0.4,
+      "requires_visual": false,
+      "fallback_policy": "use_canonical"
+    },
+    "relative_3d_position": {
+      "mode": "relative_3d_position_repackage",
+      "repackage_probability": 0.4,
+      "requires_visual": false,
+      "fallback_policy": "use_canonical"
+    },
+    "seam_continuity": {
+      "mode": "seam_continuity_repackage",
+      "repackage_probability": 0.4,
+      "requires_visual": false,
+      "fallback_policy": "use_canonical"
+    },
+    "polar_distortion_awareness": {
+      "mode": "polar_distortion_awareness_repackage",
+      "repackage_probability": 0.4,
+      "requires_visual": false,
+      "fallback_policy": "use_canonical"
+    }
+  }
+}

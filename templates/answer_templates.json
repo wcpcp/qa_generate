@@ -1,0 +1,126 @@
+{
+  "caption.identify": [
+    "{label}",
+    "It is a {label}.",
+    "The target object is a {label}."
+  ],
+  "caption.attribute": [
+    "{attribute_value}",
+    "Its {attribute_name} is {attribute_value}.",
+    "The visible {attribute_name} is {attribute_value}."
+  ],
+  "caption.description": [
+    "{description}",
+    "A concise description is: {description}",
+    "The object can be described as: {description}"
+  ],
+  "caption.dense_description": [
+    "{description}",
+    "A detailed description is: {description}",
+    "The target object can be described in more detail as: {description}"
+  ],
+  "existence.true": [
+    "yes",
+    "Yes, it is present.",
+    "Yes, at least one is visible."
+  ],
+  "existence.false": [
+    "no",
+    "No, it is not visible.",
+    "No, none can be found."
+  ],
+  "counting": [
+    "{count}",
+    "There are {count} visible.",
+    "The visible count is {count}."
+  ],
+  "grounding.full": [
+    "bbox_norm_1000={bbox}, bfov={bfov}",
+    "The location is bbox {bbox} with BFOV {bfov}.",
+    "Use bbox {bbox}; the BFOV is {bfov}."
+  ],
+  "grounding.bbox_only": [
+    "{bbox}",
+    "bbox_norm_1000={bbox}",
+    "The normalized box is {bbox}."
+  ],
+  "grounding.angles_only": [
+    "bfov={bfov}",
+    "The BFOV is {bfov}.",
+    "Use BFOV {bfov}."
+  ],
+  "direct_direction.precise": [
+    "bfov={bfov}",
+    "Its ERP BFOV is {bfov}.",
+    "Use BFOV {bfov}."
+  ],
+  "direct_direction.cardinal": [
+    "{direction}",
+    "It lies in the {direction} sector.",
+    "The coarse direction is {direction}."
+  ],
+  "relative_direction": [
+    "{relation}",
+    "It is {relation}.",
+    "The relative direction is {relation}.",
+    "{relation} relative to the reference object."
+  ],
+  "view_transform": [
+    "{direction}",
+    "After the turn, it appears in the {direction} direction.",
+    "The transformed direction becomes {direction}.",
+    "Under that local view, the correct direction is {direction}.",
+    "In that transformed reference frame, it is {direction}."
+  ],
+  "distance_estimation": [
+    "{depth_m}",
+    "{depth_m} meters",
+    "Its estimated distance is {depth_m} meters.",
+    "Approximately {depth_m} meters away."
+  ],
+  "distance_estimation.choice": [
+    "{label}",
+    "The closest one is {label}.",
+    "{label} is the nearest candidate.",
+    "Among the listed options, {label} is the closest.",
+    "The nearest object in the candidate set is {label}."
+  ],
+  "distance_estimation.observer_choice": [
+    "{label}",
+    "The closest object to the observer is {label}.",
+    "{label} is nearest to the camera center.",
+    "Among the listed options, {label} is closest to the viewer."
+  ],
+  "relative_3d_position": [
+    "{relation}",
+    "It is {relation}.",
+    "The 3D relation is {relation}.",
+    "It is best described as {relation}."
+  ],
+  "relative_3d_position.choice": [
+    "{relation}",
+    "The correct option is {relation}.",
+    "Among the listed choices, {relation} is correct.",
+    "The best matching 3D relation is {relation}."
+  ],
+  "seam_continuity.true": [
+    "yes",
+    "Yes, it is one continuous object.",
+    "Yes, the boundary fragments belong to the same object."
+  ],
+  "seam_continuity.boundary_side": [
+    "{side}",
+    "Its matching continuation should appear near the {side}.",
+    "The corresponding fragment is expected on the {side}."
+  ],
+  "seam_continuity.explanation": [
+    "{explanation}",
+    "The split is caused by {explanation}.",
+    "This happens because {explanation}."
+  ],
+  "polar_distortion_awareness.shape": [
+    "{shape}",
+    "Its true shape is {shape}.",
+    "The object should be recognized as {shape} in shape."
+  ]
+}

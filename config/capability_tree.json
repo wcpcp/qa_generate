@@ -1,0 +1,176 @@
+{
+  "abilities": [
+    {
+      "id": "basic_understanding",
+      "name": "Basic understanding",
+      "phase_focus": "phase1_strong",
+      "subskills": [
+        "caption",
+        "existence",
+        "counting",
+        "grounding",
+        "scene_understanding"
+      ]
+    },
+    {
+      "id": "omnidirectional_understanding",
+      "name": "Omnidirectional understanding",
+      "phase_focus": "phase1_strong",
+      "subskills": [
+        "direct_direction",
+        "relative_direction",
+        "view_transform"
+      ]
+    },
+    {
+      "id": "spatial_3d_understanding",
+      "name": "3D spatial understanding",
+      "phase_focus": "phase1_mixed",
+      "subskills": [
+        "distance_estimation",
+        "relative_3d_position"
+      ],
+      "reserved_future_subskills": [
+        "cognitive_map_understanding",
+        "hps_path_selection"
+      ]
+    },
+    {
+      "id": "erp_specific",
+      "name": "ERP-specific reasoning",
+      "phase_focus": "phase1_mixed",
+      "subskills": [
+        "seam_continuity",
+        "polar_distortion_awareness"
+      ],
+      "reserved_future_subskills": [
+        "rotation_consistency"
+      ]
+    }
+  ],
+  "cross_cutting_dimensions": [
+    {
+      "id": "erp_projection_robustness",
+      "name": "ERP projection robustness",
+      "topics": [
+        "seam_continuity",
+        "polar_distortion_awareness",
+        "rotation_consistency",
+        "source_view_dominance",
+        "stitching_artifact_robustness"
+      ]
+    }
+  ],
+  "task_families": {
+    "caption": {
+      "unit": "anchor_entity",
+      "answer_type": "label_or_attribute_or_caption_text",
+      "phase": "phase1_strong",
+      "metadata_tier": "base",
+      "gt_source": ["semantic.identify", "semantic.attributes", "semantic.caption_brief"]
+    },
+    "existence": {
+      "unit": "scene",
+      "answer_type": "boolean",
+      "phase": "phase1_strong",
+      "metadata_tier": "base",
+      "gt_source": ["entity_set"]
+    },
+    "counting": {
+      "unit": "scene",
+      "answer_type": "integer",
+      "phase": "phase1_strong",
+      "metadata_tier": "base",
+      "gt_source": ["entity_set"]
+    },
+    "grounding": {
+      "unit": "anchor_entity",
+      "answer_type": "normalized_bbox_and_precise_angles",
+      "phase": "phase1_strong",
+      "metadata_tier": "base",
+      "gt_source": ["bbox_erp", "mask_rle", "semantic.reground_query"]
+    },
+    "scene_understanding": {
+      "unit": "scene",
+      "answer_type": "scene_text",
+      "phase": "future",
+      "metadata_tier": "optional",
+      "gt_source": ["scene_global_tags", "entity_summary"]
+    },
+    "direct_direction": {
+      "unit": "anchor_entity",
+      "answer_type": "yaw_pitch_degree_or_8way_direction",
+      "phase": "phase1_strong",
+      "metadata_tier": "base",
+      "gt_source": ["lon_lat"]
+    },
+    "relative_direction": {
+      "unit": "entity_pair",
+      "answer_type": "relative_yaw_pitch_direction_label",
+      "phase": "phase1_strong",
+      "metadata_tier": "base",
+      "gt_source": ["lon_lat"]
+    },
+    "view_transform": {
+      "unit": "scene_rotation",
+      "answer_type": "direction_label",
+      "phase": "phase1_strong",
+      "metadata_tier": "base",
+      "erp_robustness": true,
+      "gt_source": ["lon_lat", "rotation_rule"]
+    },
+    "distance_estimation": {
+      "unit": "anchor_entity",
+      "answer_type": "depth_meter_value",
+      "phase": "phase1_strong",
+      "metadata_tier": "optional",
+      "gt_source": ["entity_center_depth"]
+    },
+    "relative_3d_position": {
+      "unit": "entity_pair",
+      "answer_type": "distance_or_camera_centric_relation",
+      "phase": "phase1_conservative",
+      "metadata_tier": "optional",
+      "gt_source": ["entity_center_depth", "lon_lat"],
+      "preferred_gt_source": ["entity_xyz_camera"]
+    },
+    "cognitive_map_understanding": {
+      "unit": "scene",
+      "answer_type": "grid_map_or_layout_text",
+      "phase": "future",
+      "metadata_tier": "advanced",
+      "gt_source": ["room_layout_proxy", "free_space_map"]
+    },
+    "hps_path_selection": {
+      "unit": "scene",
+      "answer_type": "path_choice_or_turn_bias",
+      "phase": "future",
+      "metadata_tier": "advanced",
+      "gt_source": ["free_space_map", "openings"]
+    },
+    "seam_continuity": {
+      "unit": "anchor_entity",
+      "answer_type": "boolean_or_identity",
+      "phase": "phase1_strong",
+      "metadata_tier": "optional",
+      "erp_robustness": true,
+      "gt_source": ["seam_crossing_flag", "bbox_erp", "mask_rle"]
+    },
+    "polar_distortion_awareness": {
+      "unit": "anchor_entity_or_pair",
+      "answer_type": "distortion_aware_shape_size_or_volume_judgement",
+      "phase": "phase1_conservative",
+      "metadata_tier": "optional",
+      "erp_robustness": true,
+      "gt_source": ["lon_lat", "bbox_erp", "semantic.attributes"]
+    },
+    "rotation_consistency": {
+      "unit": "scene_rotation",
+      "answer_type": "augmentation_rule",
+      "phase": "future",
+      "metadata_tier": "base",
+      "erp_robustness": true,
+      "gt_source": ["lon_lat", "rotation_rule"]
+    }
+  }
+}

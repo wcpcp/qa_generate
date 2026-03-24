@@ -1,0 +1,173 @@
+{
+  "scene_id": "demo_scene_0001",
+  "erp_image_path": "images/demo_scene_0001.jpg",
+  "depth_map_path": "depth/demo_scene_0001.png",
+  "depth_source": "sensor_depth",
+  "metadata_pipeline_version": "v2-demo",
+  "erp_width": 1600,
+  "erp_height": 800,
+  "scene_global_tags": {
+    "room_type": "indoor_room",
+    "indoor_outdoor": "indoor",
+    "visibility_quality": "medium"
+  },
+  "entities": [
+    {
+      "entity_id": "E000001",
+      "confidence": 0.58,
+      "best_score": 0.72,
+      "bbox_erp": [
+        623,
+        211,
+        706,
+        620
+      ],
+      "mask_rle": {
+        "size": [
+          800,
+          1600
+        ],
+        "counts": [
+          1,
+          2,
+          3
+        ]
+      },
+      "lon_lat": [
+        -0.52,
+        -0.06
+      ],
+      "area_ratio": 0.025,
+      "support_views": 3,
+      "projection_iou": 0.73,
+      "semantic_verification_iou": 0.79,
+      "semantic_verification_passed": true,
+      "entity_center_depth": 2.7,
+      "depth_quality_score": 0.95,
+      "depth_source": "sensor_depth",
+      "seam_crossing_flag": false,
+      "pole_proximity_flag": false,
+      "source_views": [
+        "P000_00",
+        "P000_01",
+        "P000_02"
+      ],
+      "representative_view_id": "P000_01",
+      "semantic": {
+        "identify": "door",
+        "attributes": {
+          "color": "dark brown",
+          "material": "wood",
+          "condition": "closed"
+        },
+        "caption_brief": "A closed dark brown wooden door.",
+        "reground_query": "the dark brown wooden door",
+        "confidence": 0.98
+      }
+    },
+    {
+      "entity_id": "E000002",
+      "confidence": 0.46,
+      "best_score": 0.61,
+      "bbox_erp": [
+        767,
+        357,
+        789,
+        431
+      ],
+      "mask_rle": {
+        "size": [
+          800,
+          1600
+        ],
+        "counts": [
+          1,
+          2,
+          3
+        ]
+      },
+      "lon_lat": [
+        -0.09,
+        0.02
+      ],
+      "area_ratio": 0.0012,
+      "support_views": 2,
+      "projection_iou": 0.68,
+      "semantic_verification_iou": 0.75,
+      "semantic_verification_passed": true,
+      "entity_center_depth": 5.1,
+      "depth_quality_score": 0.88,
+      "depth_source": "sensor_depth",
+      "seam_crossing_flag": false,
+      "pole_proximity_flag": false,
+      "source_views": [
+        "P000_01",
+        "P000_02"
+      ],
+      "representative_view_id": "P000_01",
+      "semantic": {
+        "identify": "window",
+        "attributes": {
+          "shape": "rectangular",
+          "color": "dark gray"
+        },
+        "caption_brief": "A rectangular window with a dark gray frame.",
+        "reground_query": "the rectangular window",
+        "confidence": 0.95
+      }
+    },
+    {
+      "entity_id": "E000003",
+      "confidence": 0.52,
+      "best_score": 0.66,
+      "bbox_erp": [
+        1530,
+        280,
+        1598,
+        640
+      ],
+      "mask_rle": {
+        "size": [
+          800,
+          1600
+        ],
+        "counts": [
+          1,
+          2,
+          3
+        ]
+      },
+      "lon_lat": [
+        3.07,
+        -0.02
+      ],
+      "area_ratio": 0.018,
+      "support_views": 3,
+      "projection_iou": 0.71,
+      "semantic_verification_iou": 0.77,
+      "semantic_verification_passed": true,
+      "entity_center_depth": 3.3,
+      "depth_quality_score": 0.92,
+      "depth_source": "sensor_depth",
+      "seam_crossing_flag": true,
+      "pole_proximity_flag": false,
+      "source_views": [
+        "P000_05",
+        "P000_06",
+        "P000_07"
+      ],
+      "representative_view_id": "P000_06",
+      "semantic": {
+        "identify": "storage cabinet",
+        "attributes": {
+          "color": "light gray",
+          "material": "metal",
+          "shape": "tall"
+        },
+        "caption_brief": "A tall light gray metal storage cabinet.",
+        "reground_query": "the tall light gray storage cabinet near the panorama boundary",
+        "confidence": 0.93
+      }
+    }
+  ]
+}

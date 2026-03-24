@@ -1,0 +1,64 @@
+{
+  "scene_budgets": {
+    "global_tasks_min": 2,
+    "global_tasks_max": 4,
+    "anchor_tasks_min": 6,
+    "anchor_tasks_max": 18,
+    "pair_tasks_min": 4,
+    "pair_tasks_max": 12,
+    "rotation_tasks_min": 0,
+    "rotation_tasks_max": 1
+  },
+  "entity_selection": {
+    "max_anchors": 6,
+    "max_partners_per_anchor": 2,
+    "min_confidence": 0.35,
+    "min_semantic_confidence": 0.7,
+    "min_area_ratio": 0.001,
+    "max_area_ratio": 0.35,
+    "prefer_verified_semantics": true
+  },
+  "coverage": {
+    "yaw_bins": 4,
+    "pitch_bins": 3,
+    "try_cover_seam_cases": true,
+    "try_cover_pole_cases": true,
+    "try_cover_same_class_distractors": true
+  },
+  "task_mix": {
+    "basic_understanding": 0.34,
+    "omnidirectional_understanding": 0.24,
+    "spatial_3d_understanding": 0.24,
+    "erp_specific": 0.18
+  },
+  "phase_policy": {
+    "phase1_strong_preferred": [
+      "caption",
+      "existence",
+      "counting",
+      "grounding",
+      "direct_direction",
+      "relative_direction",
+      "view_transform",
+      "distance_estimation",
+      "relative_3d_position",
+      "seam_continuity"
+    ],
+    "phase1_conservative": [
+      "polar_distortion_awareness"
+    ],
+    "defer_until_advanced_metadata": [
+      "scene_understanding",
+      "cognitive_map_understanding",
+      "hps_path_selection",
+      "rotation_consistency"
+    ]
+  },
+  "answer_spaces": {
+    "caption": "label_or_attribute_or_caption_text",
+    "direct_direction": "continuous_angles_or_8way_labels",
+    "distance": "metric_depth_values",
+    "relative_3d": "depth_relation_or_camera_centric_relation",
+    "erp_specific": "boolean_or_distortion_judgement"
+  }
+}

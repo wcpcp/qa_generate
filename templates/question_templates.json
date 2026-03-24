@@ -1,0 +1,212 @@
+{
+  "caption.identify": [
+    "What object matches this description: {entity_hint}?",
+    "Identify the object described as {entity_hint}.",
+    "Which object is being referred to by the phrase \"{entity_hint}\"?",
+    "What category does the object described as {entity_hint} belong to?",
+    "Name the object that fits this description: {entity_hint}.",
+    "What is the object characterized as {entity_hint}?",
+    "Which object best matches the following visual description: {entity_hint}?"
+  ],
+  "caption.attribute": [
+    "What is the {attribute_name} of {entity_hint}?",
+    "Which {attribute_name} is visible for {entity_hint}?",
+    "What {attribute_name} can be observed on {entity_hint}?",
+    "How would you describe the {attribute_name} of {entity_hint}?",
+    "What is the visible {attribute_name} of {entity_hint}?",
+    "For the object described as {entity_hint}, what is its {attribute_name}?",
+    "What {attribute_name} does {entity_hint} have?"
+  ],
+  "caption.description": [
+    "Give one concise caption for {entity_hint}.",
+    "Write a short description of {entity_hint}.",
+    "Provide one short visual description for {entity_hint}.",
+    "Briefly describe {entity_hint}.",
+    "How would you briefly describe {entity_hint}?",
+    "Write a compact caption for the object described as {entity_hint}.",
+    "Give a brief visual description of the object characterized as {entity_hint}."
+  ],
+  "caption.dense_description": [
+    "Describe {entity_hint} in detail.",
+    "Write a detailed visual description of {entity_hint}.",
+    "Provide a richer caption for {entity_hint}.",
+    "How would you describe {entity_hint} in a few detailed sentences?",
+    "Give a more complete visual description of {entity_hint}.",
+    "Write a detailed caption for the object described as {entity_hint}.",
+    "Describe the appearance and notable details of {entity_hint}.",
+    "Give a fuller object description for {entity_hint}.",
+    "Please provide a detailed object-level caption for {entity_hint}."
+  ],
+  "existence": [
+    "Is there any {category_name} anywhere in this ERP panorama?",
+    "Does the full 360 scene contain a {category_name}?",
+    "Can you find at least one {category_name} in the panorama?"
+  ],
+  "counting": [
+    "How many {category_name} are visible in the full ERP panorama?",
+    "Count the number of {category_name} across the 360 scene.",
+    "In this panorama, how many {category_name} can be found?"
+  ],
+  "grounding.full": [
+    "Locate {entity_ref} in the panorama using a normalized box and BFOV [yaw, pitch, x_fov, y_fov].",
+    "Give the 0-1000 ERP box and BFOV of {entity_ref}.",
+    "Where is {entity_ref} in the panorama? Return its normalized box and BFOV.",
+    "Return the normalized 0-1000 bounding box and BFOV for {entity_ref}.",
+    "Mark the location of {entity_ref} with a normalized ERP box and BFOV."
+  ],
+  "grounding.bbox_only": [
+    "Return only the normalized 0-1000 bounding box of {entity_ref}.",
+    "Provide only the normalized ERP bounding box for {entity_ref}.",
+    "Which normalized 0-1000 box encloses {entity_ref} in the panorama?",
+    "Give just the normalized box coordinates for {entity_ref}.",
+    "Mark {entity_ref} using only a normalized ERP box."
+  ],
+  "grounding.angles_only": [
+    "Return only the BFOV [yaw, pitch, x_fov, y_fov] of {entity_ref}.",
+    "Report only the precise BFOV of {entity_ref}.",
+    "Give the exact BFOV of {entity_ref} in the ERP image.",
+    "What is the BFOV of {entity_ref}?",
+    "Provide only the angular BFOV location of {entity_ref}."
+  ],
+  "direct_direction.precise": [
+    "What is the exact BFOV [yaw, pitch, x_fov, y_fov] of {entity_ref} in the ERP image?",
+    "Give the panorama BFOV of {entity_ref}.",
+    "At which exact BFOV is {entity_ref} located in the ERP image?",
+    "Report the precise BFOV of {entity_ref} in the ERP panorama.",
+    "What are the BFOV parameters of {entity_ref}?"
+  ],
+  "direct_direction.cardinal": [
+    "Which 8-way panorama direction does {entity_ref} lie in relative to the observer?",
+    "Is {entity_ref} mainly front, front-right, right, back-right, back, back-left, left, or front-left?",
+    "What coarse panorama sector contains {entity_ref}?",
+    "Which coarse 8-way direction best matches the position of {entity_ref}?",
+    "In broad panorama terms, where is {entity_ref} located around the observer?"
+  ],
+  "relative_direction": [
+    "Relative to the {entity_b}, where is the {entity_a} in the panorama?",
+    "What is the panorama direction of the {entity_a} with respect to the {entity_b}?",
+    "Compared with the {entity_b}, where does the {entity_a} appear?",
+    "From the position of the {entity_b}, which relative direction best matches the {entity_a}?",
+    "How is the {entity_a} positioned relative to the {entity_b} in ERP space?",
+    "Where would you place the {entity_a} relative to the {entity_b} in the panorama?",
+    "In broad ERP direction terms, where is the {entity_a} compared with the {entity_b}?",
+    "Which horizontal panorama relation best describes the {entity_a} relative to the {entity_b}?",
+    "Is the {entity_a} in front of, behind, left of, right of, or diagonally offset from the {entity_b}?"
+  ],
+  "view_transform.turn_right_90": [
+    "If the observer turns 90° to the {rotation_direction}, which 8-way direction will {entity_ref} move to?",
+    "After rotating the viewing heading 90° to the {rotation_direction}, where would the {target_label} appear?",
+    "If you turn 90° to the {rotation_direction}, what coarse direction will {entity_ref} be in?"
+  ],
+  "view_transform.turn_left_90": [
+    "If the observer turns 90° to the {rotation_direction}, which 8-way direction will {entity_ref} move to?",
+    "After rotating the viewing heading 90° to the {rotation_direction}, where would the {target_label} appear?",
+    "If you turn 90° to the {rotation_direction}, what coarse direction will {entity_ref} be in?"
+  ],
+  "view_transform.object_anchored_facing": [
+    "If you stand by the {standing_label} and face the {facing_label}, where is the {target_label} in 8-way direction terms?",
+    "Using the {standing_label} as your standing point and looking toward the {facing_label}, which direction is the {target_label}?",
+    "If you are positioned at the {standing_label} and treat the {facing_label} as straight ahead, is the {target_label} front, back, left, right, front-left, front-right, back-left, or back-right?",
+    "Imagine standing next to the {standing_label} and facing the {facing_label}. In that local view, where would the {target_label} be?",
+    "Take the {standing_label} as your position and the direction toward the {facing_label} as forward. Which 8-way direction best matches the {target_label}?",
+    "Suppose you move to the {standing_label} and look directly at the {facing_label}. Is the {target_label} to your front, front-left, left, back-left, back, back-right, right, or front-right?",
+    "From the viewpoint of the {standing_label}, with the {facing_label} defining straight ahead, what is the relative direction of the {target_label}?",
+    "Move to the {standing_label} and orient yourself toward the {facing_label}. In that object-centered view, which way is the {target_label}?",
+    "If the direction from the {standing_label} to the {facing_label} is treated as local front, where does the {target_label} lie?",
+    "Stand at the {standing_label} and use the {facing_label} as the forward reference. What 8-way direction best describes the {target_label}?"
+  ],
+  "view_transform.object_anchored_back_to": [
+    "If you stand by the {standing_label} with your back toward the {facing_label}, where is the {target_label} in 8-way direction terms?",
+    "Using the {standing_label} as your standing point and keeping the {facing_label} behind you, which direction is the {target_label}?",
+    "If you are positioned at the {standing_label} and treat the opposite of the {facing_label} direction as straight ahead, is the {target_label} front, back, left, right, front-left, front-right, back-left, or back-right?",
+    "Imagine standing next to the {standing_label} with your back to the {facing_label}. In that local view, where would the {target_label} be?",
+    "Take the {standing_label} as your position and let the {facing_label} define your backward direction. Which 8-way direction best matches the {target_label}?",
+    "Suppose you move to the {standing_label} and deliberately turn away from the {facing_label}. Is the {target_label} to your front, front-left, left, back-left, back, back-right, right, or front-right?",
+    "From the viewpoint of the {standing_label}, with the {facing_label} directly behind you, what is the relative direction of the {target_label}?",
+    "Stand at the {standing_label} and keep the {facing_label} at your back. In that object-centered view, which way is the {target_label}?",
+    "If the opposite direction from the {standing_label} to the {facing_label} is treated as local front, where does the {target_label} lie?",
+    "Use the {standing_label} as your position and imagine turning your back toward the {facing_label}. What 8-way direction best describes the {target_label}?"
+  ],
+  "view_transform.object_anchored_direction": [
+    "If you stand by the {standing_label} and face the {facing_label}, where is the {target_label} in 8-way direction terms?",
+    "Using the {standing_label} as your standing point and looking toward the {facing_label}, which direction is the {target_label}?",
+    "If you are positioned at the {standing_label} and treat the {facing_label} as straight ahead, is the {target_label} front, back, left, right, front-left, front-right, back-left, or back-right?"
+  ],
+  "distance_estimation": [
+    "What is the estimated center depth of the {target_label} in meters?",
+    "Give the absolute depth of {entity_ref} in meters.",
+    "How far is the {target_label} from the observer? Return the distance in meters.",
+    "Estimate the distance from the observer to {entity_ref} in meters.",
+    "What is the approximate metric distance to {entity_ref}?"
+  ],
+  "distance_estimation.choice": [
+    "Measuring 3D center distance, which of these objects ({candidate_list}) is closest to the {reference_label} in this panorama?",
+    "Among {candidate_list}, which object is nearest to the {reference_label} when using center-to-center 3D distance?",
+    "Which candidate object is closest to the {reference_label}: {candidate_list}?",
+    "Using 3D center distance as the metric, which of these candidates is nearest to the {reference_label}: {candidate_list}?",
+    "Out of {candidate_list}, which object lies closest to the {reference_label} in 3D space?",
+    "If distance is measured from object center to object center, which candidate is closest to the {reference_label}: {candidate_list}?",
+    "Which of the following objects is the nearest neighbor of the {reference_label} in center-based 3D distance: {candidate_list}?",
+    "Among the candidates {candidate_list}, which one is nearest to the {reference_label}?",
+    "Which option is closest to the {reference_label} when comparing 3D center distances: {candidate_list}?"
+  ],
+  "distance_estimation.observer_choice": [
+    "Which of these objects ({candidate_list}) is closest to the observer in this panorama?",
+    "Among {candidate_list}, which object is nearest to the camera center?",
+    "Which candidate appears closest to the viewer: {candidate_list}?",
+    "Using object depth as the metric, which option is nearest to the observer: {candidate_list}?",
+    "Which listed object is closest to the camera in this ERP scene: {candidate_list}?"
+  ],
+  "relative_3d_position.open": [
+    "What is the camera-centric 3D relation of the {entity_a} relative to the {entity_b}?",
+    "Describe the 3D offset of the {entity_a} compared with the {entity_b}.",
+    "How is the {entity_a} positioned in 3D space relative to the {entity_b}?",
+    "Compared with the {entity_b}, where is the {entity_a} in 3D space?",
+    "Which 3D relation best describes the {entity_a} relative to the {entity_b}?",
+    "Which description best matches the 3D position of the {entity_a} relative to the {entity_b}?",
+    "In 3D space, where would you place the {entity_a} compared with the {entity_b}?",
+    "Is the {entity_a} left of, right of, above, below, in front of, or behind the {entity_b}?",
+    "Which standard 3D spatial relation best matches the {entity_a} relative to the {entity_b}?"
+  ],
+  "relative_3d_position.choice": [
+    "Which option best describes the 3D position of the {entity_a} relative to the {entity_b}: {choice_list}?",
+    "Choose the best camera-centric 3D relation for the {entity_a} relative to the {entity_b}: {choice_list}.",
+    "Among the following 3D relations, which one matches the {entity_a} compared with the {entity_b}: {choice_list}?",
+    "Select the most accurate 3D relation of the {entity_a} with respect to the {entity_b}: {choice_list}.",
+    "Which listed relation best fits the {entity_a} relative to the {entity_b} in 3D space: {choice_list}?"
+  ],
+  "seam_continuity.same_instance_yesno": [
+    "Do the left-edge and right-edge fragments of the {target_label} refer to the same object?",
+    "Is the {target_label} split across the ERP seam still one continuous instance?",
+    "For the object near BFOV {bfov}, are the two ERP boundary sides connected as one object?"
+  ],
+  "seam_continuity.counterpart_boundary_side": [
+    "If one fragment of the {target_label} appears near the {hinted_side}, where should its matching continuation appear?",
+    "For the seam-crossing {target_label} near BFOV {bfov}, which panorama boundary should contain the matching counterpart of a fragment on the {hinted_side}?",
+    "When the {target_label} wraps across the ERP seam, where does the matching continuation of a fragment on the {hinted_side} appear?"
+  ],
+  "seam_continuity.wrap_explanation": [
+    "What best explains why the {target_label} appears on both sides of the ERP panorama boundary?",
+    "Why does the {target_label} near BFOV {bfov} show fragments on both panorama edges?",
+    "What is the most plausible explanation for the split appearance of the {target_label} across the left-right ERP boundary?"
+  ],
+  "seam_continuity.rotation_continuity": [
+    "If the ERP seam were moved away from the {target_label}, would it likely appear as one continuous object?",
+    "Would the seam-crossing {target_label} near BFOV {bfov} become visually continuous if the panorama boundary were shifted?",
+    "If the left-right panorama seam no longer cut through the {target_label}, should it appear as a single continuous instance?"
+  ],
+  "polar_distortion_awareness.shape_direct": [
+    "What is the true shape of the {target_label} near BFOV {bfov}, ignoring ERP distortion?",
+    "The object at BFOV {bfov} may look stretched in ERP. What is its actual shape?",
+    "For the high-latitude {target_label} near BFOV {bfov}, what is its real shape rather than its distorted appearance?"
+  ],
+  "polar_distortion_awareness.shape_distortion_aware": [
+    "Near the ERP pole, the {target_label} at BFOV {bfov} may appear warped. What is its true shape?",
+    "Although the {target_label} near BFOV {bfov} looks distorted in ERP, what shape is it actually?",
+    "For the high-latitude {target_label} near BFOV {bfov}, recover its real shape rather than the pole-distorted appearance.",
+    "The ERP projection may stretch the {target_label} at BFOV {bfov}. What is the object's actual shape?",
+    "Ignoring the polar distortion affecting the {target_label} near BFOV {bfov}, what is its true shape?"
+  ],
+  "polar_distortion_awareness.size": [],
+  "polar_distortion_awareness.volume": []
+}
