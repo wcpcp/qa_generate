@@ -33,13 +33,20 @@ def read_jsonl(input_path: str) -> List[Dict[str, Any]]:
 
 def export_scene_bundle(bundle: Dict[str, Any], output_dir: str) -> List[str]:
     # 导出单 scene 的统一产物。
-    # 这里默认只保留“这一步新增且真正有用”的文件，
-    # 不再重复保存已经可以通过其他独立脚本单独导出的 scene_plan / canonical_samples / postprocess_plan。
+    # prepare 阶段需要保留可复用快照：
+    # 1. canonical_samples.jsonl
+    # 2. postprocess_jobs.jsonl
+    # 3. summary.json
+    # 这样 execute 阶段就能直接读取现有结果，不必从 metadata 全量重建。
     output_path = Path(output_dir)
     scene_dir = output_path / bundle["scene_id"]
     scene_dir.mkdir(parents=True, exist_ok=True)
 
     written: List[str] = []
+    target = scene_dir / "canonical_samples.jsonl"
+    write_jsonl(bundle.get("prepared_canonical_samples", bundle["canonical_samples"]), str(target))
+    written.append(str(target))
+
     for name, payload in [
         ("summary.json", bundle["summary"]),
     ]:
@@ -79,6 +86,10 @@ def export_scene_bundle_to_path(bundle: Dict[str, Any], scene_dir: str) -> List[
     scene_path.mkdir(parents=True, exist_ok=True)
 
     written: List[str] = []
+    target = scene_path / "canonical_samples.jsonl"
+    write_jsonl(bundle.get("prepared_canonical_samples", bundle["canonical_samples"]), str(target))
+    written.append(str(target))
+
     for name, payload in [
         ("summary.json", bundle["summary"]),
     ]:
@@ -116,13 +127,19 @@ def export_corpus_bundle(bundle: Dict[str, Any], output_dir: str) -> List[str]:
     all_jobs: List[Dict[str, Any]] = []
     all_final: List[Dict[str, Any]] = []
     all_unresolved: List[Dict[str, Any]] = []
+    all_canonical: List[Dict[str, Any]] = []
 
     for scene_bundle in bundle["scenes"]:
         written.extend(export_scene_bundle(scene_bundle, output_dir))
         all_jobs.extend(scene_bundle["postprocess_plan"]["jobs"])
+        all_canonical.extend(scene_bundle.get("prepared_canonical_samples", scene_bundle["canonical_samples"]))
         if "postprocess_execution" in scene_bundle:
             all_final.extend(scene_bundle["postprocess_execution"]["final_samples"])
             all_unresolved.extend(scene_bundle["postprocess_execution"]["unresolved_jobs"])
+
+    canonical_path = output_path / "canonical_samples.jsonl"
+    write_jsonl(all_canonical, str(canonical_path))
+    written.append(str(canonical_path))
 
     for name, payload in [
         ("postprocess_jobs.jsonl", all_jobs),
@@ -147,5 +164,29 @@ def export_corpus_bundle(bundle: Dict[str, Any], output_dir: str) -> List[str]:
             str(execution_path),
         )
         written.append(str(execution_path))
+
+    return written
+
+
+def export_scene_execution(execution: Dict[str, Any], summary: Dict[str, Any], scene_dir: str) -> List[str]:
+    # execute 阶段导出：
+    # - postprocess_execution.json
+    # - final_samples.jsonl
+    # - 更新后的 summary.json
+    scene_path = Path(scene_dir)
+    scene_path.mkdir(parents=True, exist_ok=True)
+    written: List[str] = []
+
+    target = scene_path / "summary.json"
+    write_json(summary, str(target))
+    written.append(str(target))
+
+    target = scene_path / "postprocess_execution.json"
+    write_json(execution, str(target))
+    written.append(str(target))
+
+    target = scene_path / "final_samples.jsonl"
+    write_jsonl(execution["final_samples"], str(target))
+    written.append(str(target))
 
     return written

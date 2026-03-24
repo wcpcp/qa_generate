@@ -1,8 +1,12 @@
 # ERP Data Generation
 
-当前版本已经收敛成一条更简单的主流程：
+当前版本现在推荐拆成两阶段主流程：
 
-`metadata -> scene plan -> canonical QA -> task-aware postprocess -> final samples`
+`metadata -> scene plan -> canonical QA -> postprocess inputs`
+
+然后再执行：
+
+`prepared artifacts -> LLM postprocess -> final samples`
 
 这里不再保留旧的 `QC -> verification -> realization` 三段式后处理。
 原因很直接：
@@ -107,18 +111,28 @@
 
 ## 统一入口
 
-现在推荐只用一个主脚本：
+prepare 阶段主脚本：
 
 - [build_training_data.py](/Users/wcp/code/erp_data_pipeline/data_generation/scripts/build_training_data.py)
 
-它统一负责：
+它负责：
 
 1. 读取 metadata
 2. 生成 `scene_plan`
 3. 生成 `canonical_samples`
 4. 构建 `postprocess_jobs`
-5. 可选执行 LLM 后处理
-6. 导出最终结果
+5. 导出可复用快照
+
+execute 阶段主脚本：
+
+- [execute_postprocess.py](/Users/wcp/code/qa_generate/scripts/execute_postprocess.py)
+
+它只读取已经准备好的：
+
+- `canonical_samples.jsonl`
+- `postprocess_jobs.jsonl`
+
+不会重新读取 metadata，也不会重新生成模板 QA。
 
 ## 快速开始
 
@@ -145,78 +159,55 @@ python3 data_generation/scripts/generate_canonical_samples.py \
   --output /Users/wcp/code/erp_data_pipeline/data_generation/results/canonical_samples.jsonl
 ```
 
-### 4. 统一生成训练数据包，不执行 LLM
+### 4. 第一阶段：生成可复用的训练数据包
 
 ```bash
-python3 data_generation/scripts/build_training_data.py \
-  --input data_generation/dataset/metadata.json \
-  --output-dir /Users/wcp/code/erp_data_pipeline/data_generation/results/training_bundle \
+python3 scripts/build_training_data.py \
+  --input examples/scene_metadata_minimal.json \
+  --output-dir /tmp/qa_prepare \
   --repackage-probability 0.4
 ```
 
 这一步会导出：
 
+- `canonical_samples.jsonl`
 - `postprocess_jobs.jsonl`
 - `summary.json`
-‘’‘
-canonical_sample_count = 17    这条 scene 最终生成了 17 条 canonical QA。
 
-postprocess_job_count = 8    这 17 条里，有 8 条被选中进入后处理。
-后处理的含义是：
-counting：视觉验证 + 纠错 + 重包装
-其他被抽中的规则任务：只做重包装
+其中：
 
-passthrough_count = 9   有 9 条没有进入后处理，直接保留 canonical 版本。
-这通常包括：
-没被抽中做重包装的规则题
-当前策略明确不进后处理的题，比如 caption
+- `canonical_samples.jsonl` 是冻结后的 canonical QA 快照
+- `postprocess_jobs.jsonl` 是后续真正要送给 LLM 的任务列表
+- `summary.json` 是这个地点的统计摘要
 
-filtered_postprocess_count = 0     本来打算进入后处理的样本里，没有任何一条被直接判定为“必须过滤掉”。
-
-skipped_postprocess_count = 7     有 7 条是“本来属于可后处理任务”，但这次没有真正进入 job 列表。
-在你当前这版里，这基本等价于：
-没被 0.4 概率抽中
-所以被记成 skipped
-更直白一点，你这次这条 scene 的流转是：
-
-先生成 17 条 canonical 样本
-其中 8 条进入 postprocess jobs
-另外 9 条直接 passthrough
-没有样本被强制过滤
-那 7 条 skipped，其实是 9 条 passthrough 里的一个子集来源：
-它们本来是“可重包装任务”
-但因为抽样没抽中，所以跳过了 postprocess
-剩下的 passthrough 则更多是像 caption 这种策略上就不进 postprocess 的题
-’‘’
-
-默认不再重复保存 `scene_plan.json` 和 `canonical_samples.jsonl`，
-因为它们已经可以分别通过：
-
-- [generate_scene_plan.py](/Users/wcp/code/erp_data_pipeline/data_generation/scripts/generate_scene_plan.py)
-- [generate_canonical_samples.py](/Users/wcp/code/erp_data_pipeline/data_generation/scripts/generate_canonical_samples.py)
-
-单独得到。
-
-### 5. 统一生成并执行 LLM 后处理
+### 5. 第二阶段：只读取已准备好的内容执行 LLM
 
 ```bash
 export SL_KEY=...
 
-python3 data_generation/scripts/build_training_data.py \
-  --input data_generation/dataset/metadata.json \
-  --output-dir /Users/wcp/code/erp_data_pipeline/data_generation/results/training_bundle_llm \
-  --repackage-probability 0.4 \
-  --run-llm \
+python3 scripts/execute_postprocess.py \
+  --input /tmp/qa_prepare \
   --base-url https://api.siliconflow.cn/v1 \
   --model Qwen/Qwen3.5-27B
 ```
 
-如果模型调用成功，还会额外导出：
+这一步会额外导出：
 
 - `postprocess_execution.json`
 - `final_samples.jsonl`
+- `execution_summary.json`
+- `execution_manifest.jsonl`
 
 ## 当前输出文件含义
+
+### `canonical_samples.jsonl`
+
+冻结后的 canonical QA 快照，同时带有 `postprocess_disposition`，
+用于第二阶段恢复哪些样本是：
+
+- `job`
+- `passthrough`
+- `filtered`
 
 ### `postprocess_jobs.jsonl`
 

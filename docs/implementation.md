@@ -2,9 +2,13 @@
 
 ## 当前实现主线
 
-当前代码已经收敛成一条统一流程：
+当前代码现在推荐拆成两阶段：
 
-`metadata -> scene plan -> canonical QA -> task-aware postprocess -> final samples`
+`metadata -> scene plan -> canonical QA -> postprocess inputs`
+
+然后：
+
+`prepared artifacts -> LLM postprocess -> final samples`
 
 其中：
 
@@ -100,15 +104,27 @@
 - `execute_scene_bundle`
 - `execute_corpus_bundle`
 
+其中 `build_scene_bundle` 现在还会额外生成：
+
+- `prepared_canonical_samples`
+
+它是在 `canonical_samples` 基础上附加：
+
+- `postprocess_disposition`
+- `postprocess_job_id`
+- `postprocess_mode`
+
+用于第二阶段不读 metadata 直接恢复执行上下文。
+
 ### [exporters.py](/Users/wcp/code/erp_data_pipeline/data_generation/src/erp_data_generation/exporters.py)
 
 负责导出：
 
-- `scene_plan.json`
 - `canonical_samples.jsonl`
 - `postprocess_jobs.jsonl`
 - `postprocess_execution.json`
 - `final_samples.jsonl`
+- `execution_summary.json`
 
 ## 推荐运行顺序
 
@@ -135,23 +151,20 @@ python3 data_generation/scripts/generate_canonical_samples.py \
   --output /tmp/canonical_samples.jsonl
 ```
 
-### 4. 跑统一主流程
+### 4. prepare 阶段
 
 ```bash
-python3 data_generation/scripts/build_training_data.py \
+python3 scripts/build_training_data.py \
   --input /path/to/scene_or_directory \
-  --output-dir /tmp/erp_training_bundle \
+  --output-dir /tmp/qa_prepare \
   --repackage-probability 0.4
 ```
 
-### 5. 如需模型后处理，再打开 `--run-llm`
+### 5. execute 阶段
 
 ```bash
-python3 data_generation/scripts/build_training_data.py \
-  --input /path/to/scene_or_directory \
-  --output-dir /tmp/erp_training_bundle_llm \
-  --repackage-probability 0.4 \
-  --run-llm \
+python3 scripts/execute_postprocess.py \
+  --input /tmp/qa_prepare \
   --base-url https://api.siliconflow.cn/v1 \
   --model Qwen/Qwen3.5-27B
 ```

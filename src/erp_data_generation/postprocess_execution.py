@@ -108,6 +108,22 @@ def execute_postprocess_jobs(
     }
 
 
+def derive_execution_context(
+    canonical_samples: Iterable[Dict[str, Any]],
+) -> Tuple[List[str], List[str]]:
+    # 从 prepare 阶段已经保存好的 canonical_samples.jsonl 恢复执行上下文。
+    # 这样 execute 阶段只需读取 canonical + jobs，无需重新访问 metadata。
+    passthrough_ids: List[str] = []
+    filtered_ids: List[str] = []
+    for sample in canonical_samples:
+        disposition = sample.get("postprocess_disposition")
+        if disposition == "filtered":
+            filtered_ids.append(sample["sample_id"])
+        elif disposition != "job":
+            passthrough_ids.append(sample["sample_id"])
+    return passthrough_ids, filtered_ids
+
+
 def _handle_unresolved(
     job: Dict[str, Any],
     sample: Dict[str, Any],
@@ -221,6 +237,15 @@ def _merge_text_repackage(sample: Dict[str, Any], output_json: Dict[str, Any]) -
 def _canonical_as_final(sample: Dict[str, Any], *, source: str) -> Dict[str, Any]:
     # 把 canonical sample 包装成最终输出格式。
     final_sample = copy.deepcopy(sample)
+    for key in [
+        "postprocess_disposition",
+        "postprocess_job_id",
+        "postprocess_mode",
+        "postprocess_requires_visual",
+        "postprocess_fallback_policy",
+        "postprocess_reason",
+    ]:
+        final_sample.pop(key, None)
     final_sample["finalization_source"] = source
     final_sample["final_question"] = sample["canonical_question"]
     final_sample["final_answer_text"] = sample["answer_text"]

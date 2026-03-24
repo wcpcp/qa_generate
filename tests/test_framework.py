@@ -17,7 +17,7 @@ from erp_data_generation.builders import build_canonical_samples
 from erp_data_generation.orchestrator import build_corpus_bundle, build_scene_bundle
 from erp_data_generation.pipeline import build_scene_plan, load_scene_metadata
 from erp_data_generation.postprocess import build_postprocess_jobs
-from erp_data_generation.postprocess_execution import _merge_counting, _merge_text_repackage
+from erp_data_generation.postprocess_execution import _merge_counting, _merge_text_repackage, derive_execution_context
 
 
 EXAMPLE_SCENE = ROOT / "examples" / "scene_metadata_minimal.json"
@@ -113,6 +113,15 @@ class FrameworkTestCase(unittest.TestCase):
         bundle = build_scene_bundle(str(EXAMPLE_SCENE))
         self.assertIn("postprocess_plan", bundle)
         self.assertIn("canonical_samples", bundle)
+        self.assertIn("prepared_canonical_samples", bundle)
+
+    def test_prepared_canonical_samples_can_restore_execution_context(self) -> None:
+        bundle = build_scene_bundle(str(EXAMPLE_SCENE))
+        passthrough_ids, filtered_ids = derive_execution_context(bundle["prepared_canonical_samples"])
+        dispositions = {sample["postprocess_disposition"] for sample in bundle["prepared_canonical_samples"]}
+        self.assertIn("passthrough", dispositions)
+        self.assertEqual(sorted(filtered_ids), sorted(bundle["postprocess_plan"]["filtered_sample_ids"]))
+        self.assertEqual(sorted(passthrough_ids), sorted(bundle["postprocess_plan"]["passthrough_sample_ids"]))
 
     def test_corpus_bundle_builds(self) -> None:
         bundle = build_corpus_bundle([str(EXAMPLE_SCENE)])

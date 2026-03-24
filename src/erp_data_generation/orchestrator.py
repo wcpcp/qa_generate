@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -39,11 +40,13 @@ def build_scene_bundle(
         policy_path=postprocess_policy_path,
         repackage_probability=repackage_probability,
     )
+    prepared_canonical_samples = _annotate_canonical_samples(canonical_samples, postprocess_plan)
     return {
         "scene_id": scene.scene_id,
         "input_path": scene_input_path,
         "scene_plan": scene_plan,
         "canonical_samples": canonical_samples,
+        "prepared_canonical_samples": prepared_canonical_samples,
         "postprocess_plan": postprocess_plan,
         "summary": {
             "canonical_sample_count": len(canonical_samples),
@@ -133,3 +136,40 @@ def execute_corpus_bundle(
         },
         "scenes": executed_scenes,
     }
+
+
+def _annotate_canonical_samples(
+    canonical_samples: Iterable[Dict[str, Any]],
+    postprocess_plan: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    # 为第二阶段“只读取现有快照执行 LLM”准备最小可复用状态：
+    # 直接把每条 canonical sample 标成 job / passthrough / filtered，
+    # 这样后续无需再读 metadata 或 postprocess_plan 明细就能恢复执行上下文。
+    jobs_by_sample_id = {job["sample_id"]: job for job in postprocess_plan.get("jobs", [])}
+    filtered_ids = set(postprocess_plan.get("filtered_sample_ids", []))
+    skipped_by_sample_id = {
+        item["sample_id"]: item for item in postprocess_plan.get("skipped_samples", []) if item.get("sample_id")
+    }
+
+    prepared_samples: List[Dict[str, Any]] = []
+    for sample in canonical_samples:
+        prepared = copy.deepcopy(sample)
+        sample_id = prepared["sample_id"]
+        if sample_id in jobs_by_sample_id:
+            job = jobs_by_sample_id[sample_id]
+            prepared["postprocess_disposition"] = "job"
+            prepared["postprocess_job_id"] = job["job_id"]
+            prepared["postprocess_mode"] = job["mode"]
+            prepared["postprocess_requires_visual"] = job.get("requires_visual", False)
+            prepared["postprocess_fallback_policy"] = job.get("fallback_policy", "use_canonical")
+        elif sample_id in filtered_ids:
+            prepared["postprocess_disposition"] = "filtered"
+            prepared["postprocess_reason"] = skipped_by_sample_id.get(sample_id, {}).get(
+                "reason", "filtered_before_execution"
+            )
+        else:
+            prepared["postprocess_disposition"] = "passthrough"
+            if sample_id in skipped_by_sample_id:
+                prepared["postprocess_reason"] = skipped_by_sample_id[sample_id].get("reason")
+        prepared_samples.append(prepared)
+    return prepared_samples
