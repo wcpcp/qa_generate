@@ -55,10 +55,10 @@ def build_entity_visual_context(scene: SceneMetadata, entity: Entity) -> Dict[st
         return assets
 
 
-def build_grounding_visual_context(scene: SceneMetadata, entity: Entity) -> Dict[str, Any]:
-    # 为 grounding 任务准备四面透视图，而不是直接把整张 ERP 原图发给模型。
+def build_four_face_visual_context(scene: SceneMetadata, entity: Entity | None = None) -> Dict[str, Any]:
+    # 为 counting 等需要 360 全局视觉核查的任务准备四面透视图，而不是直接把整张 ERP 原图发给模型。
     # 这四张图固定覆盖 front / right / back / left 四个水平朝向，
-    # 并在目标可见时绘制细框，便于模型在多图条件下核查 BFOV / bbox。
+    # 如果给了 entity，则在目标可见时绘制细框。
     assets = {
         "erp_image_path": scene.erp_image_path,
         "image_available": bool(scene.erp_image_path and Path(scene.erp_image_path).exists()),
@@ -71,7 +71,7 @@ def build_grounding_visual_context(scene: SceneMetadata, entity: Entity) -> Dict
     try:
         out_dir = Path(tempfile.gettempdir()) / "erp_grounding_context"
         out_dir.mkdir(parents=True, exist_ok=True)
-        base_name = f"{scene.scene_id}_{entity.entity_id}"
+        base_name = f"{scene.scene_id}_{entity.entity_id}" if entity is not None else f"{scene.scene_id}_global"
         faces = [
             ("front", 0.0),
             ("right", 90.0),
@@ -87,7 +87,7 @@ def build_grounding_visual_context(scene: SceneMetadata, entity: Entity) -> Dict
             generated.append(
                 {
                     "path": str(output_path),
-                    "kind": "grounding_face",
+                    "kind": "erp_face",
                     "face_name": face_name,
                     "yaw_deg": round(yaw_deg, 1),
                     "pitch_deg": round(pitch_deg, 1),
@@ -102,7 +102,7 @@ def build_grounding_visual_context(scene: SceneMetadata, entity: Entity) -> Dict
 
 def _save_context_view(
     scene: SceneMetadata,
-    entity: Entity,
+    entity: Entity | None,
     output_path: Path,
     yaw_deg: float,
     pitch_deg: float,
@@ -114,19 +114,20 @@ def _save_context_view(
     arr = np.asarray(src)
     persp = _equirectangular_to_perspective(arr, yaw_deg, pitch_deg, fov_deg, out_w, out_h)
     image = Image.fromarray(persp)
-    box = _project_bbox_to_perspective(
-        scene.erp_width,
-        scene.erp_height,
-        entity.bbox_erp,
-        yaw_deg,
-        pitch_deg,
-        fov_deg,
-        out_w,
-        out_h,
-    )
-    if box is not None:
-        draw = ImageDraw.Draw(image)
-        draw.rectangle(box, outline=(255, 64, 64), width=2)
+    if entity is not None:
+        box = _project_bbox_to_perspective(
+            scene.erp_width,
+            scene.erp_height,
+            entity.bbox_erp,
+            yaw_deg,
+            pitch_deg,
+            fov_deg,
+            out_w,
+            out_h,
+        )
+        if box is not None:
+            draw = ImageDraw.Draw(image)
+            draw.rectangle(box, outline=(255, 64, 64), width=2)
     image.save(output_path, quality=92)
 
 

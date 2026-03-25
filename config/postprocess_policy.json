@@ -16,7 +16,7 @@
     "grounding": {
       "mode": "grounding_repackage",
       "repackage_probability": 0.4,
-      "requires_visual": true,
+      "requires_visual": false,
       "fallback_policy": "use_canonical"
     },
     "direct_direction": {

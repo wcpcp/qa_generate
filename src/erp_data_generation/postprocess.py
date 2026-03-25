@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from .pipeline import NEGATIVE_EXISTENCE_CANDIDATES
 from .schemas import Entity, SceneMetadata
-from .visual_context import build_entity_visual_context, build_grounding_visual_context
+from .visual_context import build_entity_visual_context, build_four_face_visual_context
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -333,8 +333,8 @@ def _visual_assets(scene: SceneMetadata, sample: Dict[str, Any], entities: List[
     if mode == "caption_visual_refine" and entities:
         visual_context = build_entity_visual_context(scene, entities[0])
         assets.update(visual_context)
-    elif mode == "grounding_repackage" and entities:
-        visual_context = build_grounding_visual_context(scene, entities[0])
+    elif mode == "counting_visual_correct":
+        visual_context = build_four_face_visual_context(scene)
         assets.update(visual_context)
     return assets
 
@@ -365,10 +365,14 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
         return (
             "You are verifying and rewriting an ERP counting QA sample.\n\n"
             f"Structured facts:\n{facts_json}\n\n"
+            "Visual setup:\n"
+            "- You are given four perspective views derived from the same ERP panorama.\n"
+            "- The four images are ordered as front, right, back, and left.\n"
+            "- Together they cover the full 360 scene.\n\n"
             "Think step by step internally:\n"
-            "1. Inspect the full ERP panorama globally.\n"
-            "2. Locate all instances of the queried category across the entire image.\n"
-            "3. Scan left-to-right once, and explicitly avoid double-counting at the seam.\n"
+            "1. Inspect all four perspective views together as one 360 scene.\n"
+            "2. Locate all instances of the queried category across the four views.\n"
+            "3. Be careful not to double-count objects that appear near the boundaries between adjacent views.\n"
             "4. Check partial occlusions and small instances before deciding the final count.\n"
             "5. Compare the visual count with the canonical count.\n"
             "6. If the scene is too ambiguous, choose filter.\n"
@@ -411,24 +415,17 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
         )
 
     if mode == "grounding_repackage":
-        return (
-            "You are verifying and rewriting an ERP grounding QA sample.\n\n"
-            f"Structured facts:\n{facts_json}\n\n"
-            "Visual setup:\n"
-            "- You are given four perspective views derived from the same ERP panorama.\n"
-            "- The four images are ordered as front, right, back, and left.\n"
-            "- Thin boxes may appear on views where the target projects visibly.\n\n"
-            "Think step by step internally:\n"
-            "1. Read whether the task expects bbox only, BFOV only, or both.\n"
-            "2. Use the four perspective views together with the target cue to find the same object across the 360 scene.\n"
-            "3. Check whether the existing canonical localization answer is visually plausible.\n"
-            "4. Do not infer a new localization from scratch. Keep the existing numeric answer unchanged.\n"
-            "5. Rewrite the question and answer more naturally while preserving the same truth.\n\n"
-            "Rules:\n"
-            "- full_answer must preserve the same grounding truth exactly, including BFOV and bbox when they are required.\n"
-            "- Do not invent new coordinates, do not omit required fields, and do not replace the canonical answer with a newly guessed one.\n"
-            "- Prefer a concise answer without extra analysis.\n"
-            "Return JSON with keys question and full_answer.\n"
+        return _deterministic_prompt(
+            facts_json,
+            "grounding",
+            [
+                "Interpret what the question expects: bbox only, BFOV only, or both.",
+                "Treat BFOV as the object's full spherical localization footprint rather than a single center point.",
+                "Preserve the localization truth exactly.",
+                "Rewrite the QA more naturally, but do not alter any numeric target values.",
+            ],
+            "full_answer must preserve the same grounding truth exactly, including BFOV and bbox when they are required.",
+            allow_reasoning=False,
         )
 
     if mode == "direct_direction_repackage":
