@@ -182,6 +182,8 @@ python3 scripts/build_training_data.py \
 
 ### 5. 第二阶段：只读取已准备好的内容执行 LLM
 
+使用 SiliconFlow：
+
 ```bash
 export SL_KEY=...
 
@@ -190,6 +192,24 @@ python3 scripts/execute_postprocess.py \
   --base-url https://api.siliconflow.cn/v1 \
   --model Qwen/Qwen3.5-27B
 ```
+
+使用本地或内网部署的 vLLM / OpenAI-compatible 服务：
+
+```bash
+export OPENAI_API_KEY=dummy
+
+python3 scripts/execute_postprocess.py \
+  --input /tmp/qa_prepare \
+  --base-url http://10.14.114.135:18000/v1 \
+  --model your_vllm_model_name
+```
+
+注意：
+
+- `--base-url` 最好写到 `/v1`，当前代码会自动请求 `.../chat/completions`
+- 如果服务不做鉴权，也建议提供一个占位 `OPENAI_API_KEY=dummy`
+- 当前第二阶段包含视觉任务，如 `counting` 和 `grounding`
+- 因此你部署的模型必须是支持多模态输入的 vision-language model，而不是纯文本模型
 
 这一步会额外导出：
 
