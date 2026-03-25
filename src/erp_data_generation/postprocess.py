@@ -179,14 +179,14 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
             }
         )
     elif mode == "grounding_repackage":
-        target: Dict[str, Any] = {"label": metadata.get("target_label")}
+        target: Dict[str, Any] = {"label": metadata.get("target_label"), "entity_ref": metadata.get("entity_ref")}
         if sample.get("generation_mode") != "angles_only":
             target["bbox_norm_1000"] = metadata.get("bbox_norm_1000")
         if sample.get("generation_mode") != "bbox_only":
             target["bfov"] = metadata.get("bfov")
         facts.update({"target": target, "grounding_mode": sample.get("generation_mode")})
     elif mode == "direct_direction_repackage":
-        target: Dict[str, Any] = {"label": metadata.get("target_label")}
+        target: Dict[str, Any] = {"label": metadata.get("target_label"), "entity_ref": metadata.get("entity_ref")}
         if sample.get("generation_mode") == "precise_yaw_pitch":
             target["bfov"] = metadata.get("bfov")
         facts.update(
@@ -368,11 +368,12 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
             "Visual setup:\n"
             "- You are given four perspective views derived from the same ERP panorama.\n"
             "- The four images are ordered as front, right, back, and left.\n"
+            "- Each view uses the same 100-degree perspective field of view.\n"
             "- Together they cover the full 360 scene.\n\n"
             "Think step by step internally:\n"
             "1. Inspect all four perspective views together as one 360 scene.\n"
             "2. Locate all instances of the queried category across the four views.\n"
-            "3. Be careful not to double-count objects that appear near the boundaries between adjacent views.\n"
+            "3. Be careful not to double-count objects that appear near the overlapping boundaries between adjacent views.\n"
             "4. Check partial occlusions and small instances before deciding the final count.\n"
             "5. Compare the visual count with the canonical count.\n"
             "6. If the scene is too ambiguous, choose filter.\n"
@@ -419,10 +420,11 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
             facts_json,
             "grounding",
             [
+                "Read the target label, entity_ref, and grounding_mode first.",
                 "Interpret what the question expects: bbox only, BFOV only, or both.",
                 "Treat BFOV as the object's full spherical localization footprint rather than a single center point.",
                 "Preserve the localization truth exactly.",
-                "Rewrite the QA more naturally, but do not alter any numeric target values.",
+                "Rewrite the QA more naturally, but do not alter any numeric target values or the target identity.",
             ],
             "full_answer must preserve the same grounding truth exactly, including BFOV and bbox when they are required.",
             allow_reasoning=False,
@@ -433,12 +435,13 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
             facts_json,
             "direct direction",
             [
+                "Read the target label, entity_ref, and direction_mode first.",
                 "Decide whether the target answer is precise BFOV or a coarse 8-way direction.",
                 "If the answer is precise, treat BFOV as the full spherical localization target.",
                 "Preserve the direction truth exactly.",
                 "Rewrite the QA in a more varied style.",
             ],
-            "If the canonical answer is BFOV, keep the same BFOV. If it is directional, keep the same directional meaning.",
+            "If the canonical answer is BFOV, keep the same BFOV. If it is directional, keep the same directional meaning and do not expand it into a different localization format.",
             allow_reasoning=False,
         )
 
@@ -449,6 +452,7 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
             [
                 "Read the two target entities and the provided delta_bearing_deg first.",
                 "Use that horizontal angular difference to understand the relative direction more directly.",
+                "Interpret this as a horizontal panorama relation only; do not introduce above or below language.",
                 "Keep the relative direction truth unchanged.",
                 "full_answer may include one short explanatory clause before or after the final relation.",
             ],
@@ -549,6 +553,7 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
                 "Read the rule-derived 3D relation carefully.",
                 "Keep the 3D relation truth unchanged.",
                 "If multiple axis relations are present, preserve all of them and do not drop any axis.",
+                "If you include a short analysis, make it consistent with delta_xyz_m and mention only the axes that are active in the canonical relation.",
                 "full_answer may include a short, correct geometric analysis before giving the final relation.",
             ],
             "full_answer must preserve the same 3D relation label, including every active axis relation.",

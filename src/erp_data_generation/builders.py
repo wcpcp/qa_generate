@@ -659,6 +659,7 @@ def _normalized_bbox_1000(scene: SceneMetadata, entity: Entity) -> List[int]:
 def _entity_loc_metadata(scene: SceneMetadata, entity: Entity) -> Dict[str, Any]:
     return {
         "target_label": entity.label,
+        "entity_ref": _grounding_ref(entity),
         "bbox_norm_1000": _normalized_bbox_1000(scene, entity),
         "yaw_deg": round(_yaw_deg_360(entity), 1),
         "pitch_deg": round(_pitch_deg_180(entity), 1),
