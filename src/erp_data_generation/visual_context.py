@@ -3,7 +3,6 @@ from __future__ import annotations
 import base64
 import io
 import math
-import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -19,87 +18,38 @@ from .schemas import Entity, SceneMetadata
 
 
 def build_entity_visual_context(scene: SceneMetadata, entity: Entity) -> Dict[str, Any]:
-    # 为 caption 等需要更强视觉上下文的任务准备局部透视视图。
-    # 当前只保留一张带目标细框的 context view。
-    # 视角中心对准目标，视野大小按目标角尺寸的约 3 倍放大，并做最大范围裁剪。
     assets = {
         "erp_image_path": scene.erp_image_path,
         "image_available": bool(scene.erp_image_path and Path(scene.erp_image_path).exists()),
-        "mode": "erp_full_only",
+        "mode": "erp_entity_context_deferred",
         "perspective_images": [],
     }
     if not assets["image_available"] or np is None or Image is None:
         return assets
 
-    try:
-        out_dir = Path(tempfile.gettempdir()) / "erp_visual_context"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        base_name = f"{scene.scene_id}_{entity.entity_id}"
-        yaw_deg = entity.lon_deg % 360.0
-        pitch_deg = max(0.0, min(180.0, 90.0 - entity.lat_deg))
-        bbox = entity.bbox_erp
-        bbox_w = max(1.0, float(bbox[2] - bbox[0]))
-        bbox_h = max(1.0, float(bbox[3] - bbox[1]))
-        angular_w = (bbox_w / max(scene.erp_width, 1)) * 360.0
-        angular_h = (bbox_h / max(scene.erp_height, 1)) * 180.0
-        context_fov = float(max(80.0, min(120.0, max(angular_w, angular_h) * 3.0)))
-
-        context_path = out_dir / f"{base_name}_context.jpg"
-
-        _save_context_view(scene, entity, context_path, yaw_deg, pitch_deg, context_fov, 896, 896)
-
-        assets["mode"] = "erp_to_perspective"
-        assets["perspective_images"] = [
-            {"path": str(context_path), "kind": "context_view", "fov_deg": round(context_fov, 1)},
-        ]
-        return assets
-    except Exception:
-        return assets
+    bbox = entity.bbox_erp
+    bbox_w = max(1.0, float(bbox[2] - bbox[0]))
+    bbox_h = max(1.0, float(bbox[3] - bbox[1]))
+    angular_w = (bbox_w / max(scene.erp_width, 1)) * 360.0
+    angular_h = (bbox_h / max(scene.erp_height, 1)) * 180.0
+    context_fov = float(max(80.0, min(120.0, max(angular_w, angular_h) * 3.0)))
+    assets["entity_context_spec"] = {
+        "scene_id": scene.scene_id,
+        "erp_width": scene.erp_width,
+        "erp_height": scene.erp_height,
+        "bbox_erp": entity.bbox_erp,
+        "lon_deg": entity.lon_deg,
+        "lat_deg": entity.lat_deg,
+        "context_fov_deg": round(context_fov, 1),
+        "output_size": [896, 896],
+    }
+    return assets
 
 
 def build_four_face_visual_context(scene: SceneMetadata, entity: Entity | None = None) -> Dict[str, Any]:
-    # 为 counting 等需要 360 全局视觉核查的任务准备四面透视图，而不是直接把整张 ERP 原图发给模型。
-    # 这四张图固定覆盖 front / right / back / left 四个水平朝向，
-    # 如果给了 entity，则在目标可见时绘制细框。
-    assets = {
-        "erp_image_path": scene.erp_image_path,
-        "image_available": bool(scene.erp_image_path and Path(scene.erp_image_path).exists()),
-        "mode": "erp_four_faces",
-        "perspective_images": [],
-    }
-    if not assets["image_available"] or np is None or Image is None:
-        return assets
-
-    try:
-        out_dir = Path(tempfile.gettempdir()) / "erp_grounding_context"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        base_name = f"{scene.scene_id}_{entity.entity_id}" if entity is not None else f"{scene.scene_id}_global"
-        faces = [
-            ("front", 0.0),
-            ("right", 90.0),
-            ("back", 180.0),
-            ("left", 270.0),
-        ]
-        pitch_deg = 90.0
-        fov_deg = 100.0
-        generated = []
-        for face_name, yaw_deg in faces:
-            output_path = out_dir / f"{base_name}_{face_name}.jpg"
-            _save_context_view(scene, entity, output_path, yaw_deg, pitch_deg, fov_deg, 768, 768)
-            generated.append(
-                {
-                    "path": str(output_path),
-                    "kind": "erp_face",
-                    "face_name": face_name,
-                    "yaw_deg": round(yaw_deg, 1),
-                    "pitch_deg": round(pitch_deg, 1),
-                    "fov_deg": round(fov_deg, 1),
-                }
-            )
-        assets["perspective_images"] = generated
-        return assets
-    except Exception:
-        return assets
+    if entity is None:
+        return build_four_face_visual_context_from_path(scene.erp_image_path, scene.scene_id)
+    return build_four_face_visual_context_from_path(scene.erp_image_path, f"{scene.scene_id}_{entity.entity_id}")
 
 
 def build_four_face_visual_context_from_path(erp_image_path: str, scene_id: str) -> Dict[str, Any]:
@@ -140,53 +90,6 @@ def build_four_face_visual_context_from_path(erp_image_path: str, scene_id: str)
         return assets
 
 
-def _save_context_view(
-    scene: SceneMetadata,
-    entity: Entity | None,
-    output_path: Path,
-    yaw_deg: float,
-    pitch_deg: float,
-    fov_deg: float,
-    out_w: int,
-    out_h: int,
-) -> None:
-    src = Image.open(scene.erp_image_path).convert("RGB")
-    arr = np.asarray(src)
-    persp = _equirectangular_to_perspective(arr, yaw_deg, pitch_deg, fov_deg, out_w, out_h)
-    image = Image.fromarray(persp)
-    if entity is not None:
-        box = _project_bbox_to_perspective(
-            scene.erp_width,
-            scene.erp_height,
-            entity.bbox_erp,
-            yaw_deg,
-            pitch_deg,
-            fov_deg,
-            out_w,
-            out_h,
-        )
-        if box is not None:
-            draw = ImageDraw.Draw(image)
-            draw.rectangle(box, outline=(255, 64, 64), width=2)
-    image.save(output_path, quality=92)
-
-
-def _save_context_view_from_path(
-    erp_image_path: str,
-    output_path: Path,
-    yaw_deg: float,
-    pitch_deg: float,
-    fov_deg: float,
-    out_w: int,
-    out_h: int,
-) -> None:
-    src = Image.open(erp_image_path).convert("RGB")
-    arr = np.asarray(src)
-    persp = _equirectangular_to_perspective(arr, yaw_deg, pitch_deg, fov_deg, out_w, out_h)
-    image = Image.fromarray(persp)
-    image.save(output_path, quality=92)
-
-
 def _render_context_view_data_url_from_path(
     erp_image_path: str,
     yaw_deg: float,
@@ -203,6 +106,31 @@ def _render_context_view_data_url_from_path(
     image.save(buffer, format="JPEG", quality=92)
     encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
     return f"data:image/jpeg;base64,{encoded}"
+
+
+def build_entity_visual_context_from_spec(erp_image_path: str, spec: Dict[str, Any]) -> Dict[str, Any]:
+    assets = {
+        "erp_image_path": erp_image_path,
+        "image_available": bool(erp_image_path and Path(erp_image_path).exists()),
+        "mode": "erp_entity_context",
+        "perspective_images": [],
+    }
+    if not assets["image_available"] or np is None or Image is None:
+        return assets
+
+    yaw_deg = float(spec["lon_deg"]) % 360.0
+    pitch_deg = max(0.0, min(180.0, 90.0 - float(spec["lat_deg"])))
+    fov_deg = float(spec["context_fov_deg"])
+    out_w, out_h = [int(v) for v in spec.get("output_size", [896, 896])]
+    image_url = _render_context_view_data_url_from_path(erp_image_path, yaw_deg, pitch_deg, fov_deg, out_w, out_h)
+    assets["perspective_images"] = [
+        {
+            "data_url": image_url,
+            "kind": "context_view",
+            "fov_deg": round(fov_deg, 1),
+        }
+    ]
+    return assets
 
 
 def _equirectangular_to_perspective(

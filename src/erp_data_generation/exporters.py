@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
@@ -8,15 +9,20 @@ from typing import Any, Dict, Iterable, List
 def write_json(data: Dict[str, Any], output_path: str) -> None:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as fh:
+        tmp_path = Path(fh.name)
+        fh.write(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    tmp_path.replace(path)
 
 
 def write_jsonl(records: Iterable[Dict[str, Any]], output_path: str) -> None:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as fh:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as fh:
+        tmp_path = Path(fh.name)
         for record in records:
             fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    tmp_path.replace(path)
 
 
 def read_jsonl(input_path: str) -> List[Dict[str, Any]]:

@@ -9,7 +9,12 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from .pipeline import NEGATIVE_EXISTENCE_CANDIDATES
 from .schemas import Entity, SceneMetadata
-from .visual_context import build_entity_visual_context, build_four_face_visual_context, build_four_face_visual_context_from_path
+from .visual_context import (
+    build_entity_visual_context,
+    build_entity_visual_context_from_spec,
+    build_four_face_visual_context,
+    build_four_face_visual_context_from_path,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -737,6 +742,16 @@ def build_messages_for_job(job: Dict[str, Any]) -> List[Dict[str, Any]]:
         visual_assets = build_four_face_visual_context_from_path(
             spec.get("erp_image_path", ""),
             spec.get("scene_id", job.get("scene_id", "scene")),
+        )
+    elif (
+        bool(job.get("requires_visual"))
+        and visual_assets.get("mode") == "erp_entity_context_deferred"
+        and visual_assets.get("image_available")
+    ):
+        spec = visual_assets.get("entity_context_spec", {})
+        visual_assets = build_entity_visual_context_from_spec(
+            visual_assets.get("erp_image_path", ""),
+            spec,
         )
     return _build_messages(job["prompt_text"], visual_assets, bool(job.get("requires_visual")))
 
