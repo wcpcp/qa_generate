@@ -209,32 +209,21 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
             }
         )
     elif mode == "view_transform_repackage":
-        if sample.get("generation_mode") in {"object_anchored_facing", "object_anchored_back_to", "object_anchored_direction"}:
-            facts.update(
-                {
-                    "standing_object": {"label": metadata.get("standing_label")},
-                    "facing_object": {"label": metadata.get("facing_label")},
-                    "target_object": {"label": metadata.get("target_label")},
-                    "orientation_mode": metadata.get("orientation_mode", "facing"),
-                    "canonical_direction": sample["canonical_answer"],
-                }
-            )
-        else:
-            facts.update(
-                {
-                    "target": {
-                        "label": metadata.get("target_label"),
-                        "entity_ref": metadata.get("entity_ref"),
-                        "bfov": metadata.get("bfov"),
-                    },
-                    "rotation": {
-                        "angle_deg": metadata.get("turn_angle_deg"),
-                        "direction": metadata.get("rotation_direction"),
-                    },
-                    "original_sector": _coarse_direction_from_yaw(float(metadata.get("yaw_deg"))) if metadata.get("yaw_deg") is not None else None,
-                    "canonical_direction": sample["canonical_answer"],
-                }
-            )
+        facts.update(
+            {
+                "target": {
+                    "label": metadata.get("target_label"),
+                    "entity_ref": metadata.get("entity_ref"),
+                    "bfov": metadata.get("bfov"),
+                },
+                "rotation": {
+                    "angle_deg": metadata.get("turn_angle_deg"),
+                    "direction": metadata.get("rotation_direction"),
+                },
+                "original_sector": _coarse_direction_from_yaw(float(metadata.get("yaw_deg"))) if metadata.get("yaw_deg") is not None else None,
+                "canonical_direction": sample["canonical_answer"],
+            }
+        )
     elif mode == "distance_estimation_repackage":
         if sample.get("generation_mode") == "candidate_nearest_choice":
             facts.update(
@@ -514,35 +503,6 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
         )
 
     if mode == "view_transform_repackage":
-        if sample.get("generation_mode") in {"object_anchored_facing", "object_anchored_back_to", "object_anchored_direction"}:
-            if sample.get("generation_mode") == "object_anchored_back_to":
-                task_label = "object-anchored back-to-object view transform"
-                steps = [
-                    "Read the standing object, reference object, target object, and the provided 8-way answer carefully.",
-                    "Interpret the task as a local viewpoint change: the observer stands at the standing object, but keeps their back toward the reference object.",
-                    "That means local front is the opposite of the direction from the standing object to the reference object.",
-                    "Do not change that local reference frame, and do not change the provided 8-way direction label.",
-                    "Rewrite the question so the 'back toward' orientation is explicit and unambiguous.",
-                    "full_answer may add one short rationale clause that refers to the local frame, but the direction label must stay unchanged.",
-                ]
-                rule = "The question must explicitly mention both the standing object and the reference object, and it must make clear that the observer's back is toward the reference object rather than facing it."
-            else:
-                task_label = "object-anchored facing-object view transform"
-                steps = [
-                    "Read the standing object, facing object, target object, and the provided 8-way answer carefully.",
-                    "Interpret the task as a local viewpoint change: the observer stands at the standing object, and the direction from standing object to facing object defines local front.",
-                    "Do not change that local reference frame, and do not change the provided 8-way direction label.",
-                    "Rewrite the question so the viewpoint shift is easy to imagine in one pass, without spatial ambiguity.",
-                    "full_answer may add one short rationale clause that refers to the local frame, but the direction label must stay unchanged.",
-                ]
-                rule = "The question must explicitly mention both the standing object and the facing object, and it should make clear that the answer must come from the local object-anchored viewpoint rather than the original camera viewpoint."
-            return _deterministic_prompt(
-                facts_json,
-                task_label,
-                steps,
-                rule,
-                allow_reasoning=True,
-            )
         return _deterministic_prompt(
             facts_json,
             "view transform",
