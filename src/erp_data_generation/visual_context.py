@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import io
 import math
 import tempfile
 from pathlib import Path
@@ -111,9 +113,6 @@ def build_four_face_visual_context_from_path(erp_image_path: str, scene_id: str)
         return assets
 
     try:
-        out_dir = Path(tempfile.gettempdir()) / "erp_grounding_context"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        base_name = f"{scene_id}_global"
         faces = [
             ("front", 0.0),
             ("right", 90.0),
@@ -124,11 +123,10 @@ def build_four_face_visual_context_from_path(erp_image_path: str, scene_id: str)
         fov_deg = 100.0
         generated = []
         for face_name, yaw_deg in faces:
-            output_path = out_dir / f"{base_name}_{face_name}.jpg"
-            _save_context_view_from_path(erp_image_path, output_path, yaw_deg, pitch_deg, fov_deg, 768, 768)
+            data_url = _render_context_view_data_url_from_path(erp_image_path, yaw_deg, pitch_deg, fov_deg, 768, 768)
             generated.append(
                 {
-                    "path": str(output_path),
+                    "data_url": data_url,
                     "kind": "erp_face",
                     "face_name": face_name,
                     "yaw_deg": round(yaw_deg, 1),
@@ -187,6 +185,24 @@ def _save_context_view_from_path(
     persp = _equirectangular_to_perspective(arr, yaw_deg, pitch_deg, fov_deg, out_w, out_h)
     image = Image.fromarray(persp)
     image.save(output_path, quality=92)
+
+
+def _render_context_view_data_url_from_path(
+    erp_image_path: str,
+    yaw_deg: float,
+    pitch_deg: float,
+    fov_deg: float,
+    out_w: int,
+    out_h: int,
+) -> str:
+    src = Image.open(erp_image_path).convert("RGB")
+    arr = np.asarray(src)
+    persp = _equirectangular_to_perspective(arr, yaw_deg, pitch_deg, fov_deg, out_w, out_h)
+    image = Image.fromarray(persp)
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG", quality=92)
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/jpeg;base64,{encoded}"
 
 
 def _equirectangular_to_perspective(

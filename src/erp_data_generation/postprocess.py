@@ -716,7 +716,8 @@ def _build_messages(prompt_text: str, visual_assets: Dict[str, Any], requires_vi
         perspective_images = visual_assets.get("perspective_images", [])
         if perspective_images:
             for item in perspective_images:
-                content.append({"type": "image_url", "image_url": {"url": _image_data_url(item["path"])}})
+                image_url = item.get("data_url") or _image_data_url(item["path"])
+                content.append({"type": "image_url", "image_url": {"url": image_url}})
             if visual_assets.get("overlay_image_path"):
                 content.append({"type": "image_url", "image_url": {"url": _image_data_url(visual_assets["overlay_image_path"])}})
         else:
