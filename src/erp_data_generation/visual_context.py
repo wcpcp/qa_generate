@@ -100,6 +100,48 @@ def build_four_face_visual_context(scene: SceneMetadata, entity: Entity | None =
         return assets
 
 
+def build_four_face_visual_context_from_path(erp_image_path: str, scene_id: str) -> Dict[str, Any]:
+    assets = {
+        "erp_image_path": erp_image_path,
+        "image_available": bool(erp_image_path and Path(erp_image_path).exists()),
+        "mode": "erp_four_faces",
+        "perspective_images": [],
+    }
+    if not assets["image_available"] or np is None or Image is None:
+        return assets
+
+    try:
+        out_dir = Path(tempfile.gettempdir()) / "erp_grounding_context"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        base_name = f"{scene_id}_global"
+        faces = [
+            ("front", 0.0),
+            ("right", 90.0),
+            ("back", 180.0),
+            ("left", 270.0),
+        ]
+        pitch_deg = 90.0
+        fov_deg = 100.0
+        generated = []
+        for face_name, yaw_deg in faces:
+            output_path = out_dir / f"{base_name}_{face_name}.jpg"
+            _save_context_view_from_path(erp_image_path, output_path, yaw_deg, pitch_deg, fov_deg, 768, 768)
+            generated.append(
+                {
+                    "path": str(output_path),
+                    "kind": "erp_face",
+                    "face_name": face_name,
+                    "yaw_deg": round(yaw_deg, 1),
+                    "pitch_deg": round(pitch_deg, 1),
+                    "fov_deg": round(fov_deg, 1),
+                }
+            )
+        assets["perspective_images"] = generated
+        return assets
+    except Exception:
+        return assets
+
+
 def _save_context_view(
     scene: SceneMetadata,
     entity: Entity | None,
@@ -128,6 +170,22 @@ def _save_context_view(
         if box is not None:
             draw = ImageDraw.Draw(image)
             draw.rectangle(box, outline=(255, 64, 64), width=2)
+    image.save(output_path, quality=92)
+
+
+def _save_context_view_from_path(
+    erp_image_path: str,
+    output_path: Path,
+    yaw_deg: float,
+    pitch_deg: float,
+    fov_deg: float,
+    out_w: int,
+    out_h: int,
+) -> None:
+    src = Image.open(erp_image_path).convert("RGB")
+    arr = np.asarray(src)
+    persp = _equirectangular_to_perspective(arr, yaw_deg, pitch_deg, fov_deg, out_w, out_h)
+    image = Image.fromarray(persp)
     image.save(output_path, quality=92)
 
 

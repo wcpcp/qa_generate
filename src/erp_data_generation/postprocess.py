@@ -9,7 +9,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from .pipeline import NEGATIVE_EXISTENCE_CANDIDATES
 from .schemas import Entity, SceneMetadata
-from .visual_context import build_entity_visual_context, build_four_face_visual_context
+from .visual_context import build_entity_visual_context, build_four_face_visual_context, build_four_face_visual_context_from_path
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -376,8 +376,15 @@ def _visual_assets(scene: SceneMetadata, sample: Dict[str, Any], entities: List[
         visual_context = build_entity_visual_context(scene, entities[0])
         assets.update(visual_context)
     elif mode == "counting_visual_correct":
-        visual_context = build_four_face_visual_context(scene)
-        assets.update(visual_context)
+        assets.update(
+            {
+                "mode": "erp_four_faces_deferred",
+                "four_face_spec": {
+                    "scene_id": scene.scene_id,
+                    "erp_image_path": str(erp_path) if erp_path else "",
+                },
+            }
+        )
     return assets
 
 
@@ -719,7 +726,18 @@ def _build_messages(prompt_text: str, visual_assets: Dict[str, Any], requires_vi
 
 
 def build_messages_for_job(job: Dict[str, Any]) -> List[Dict[str, Any]]:
-    return _build_messages(job["prompt_text"], job.get("visual_assets", {}), bool(job.get("requires_visual")))
+    visual_assets = dict(job.get("visual_assets", {}))
+    if (
+        bool(job.get("requires_visual"))
+        and visual_assets.get("mode") == "erp_four_faces_deferred"
+        and visual_assets.get("image_available")
+    ):
+        spec = visual_assets.get("four_face_spec", {})
+        visual_assets = build_four_face_visual_context_from_path(
+            spec.get("erp_image_path", ""),
+            spec.get("scene_id", job.get("scene_id", "scene")),
+        )
+    return _build_messages(job["prompt_text"], visual_assets, bool(job.get("requires_visual")))
 
 
 def _image_data_url(image_path: str) -> str:
