@@ -5,6 +5,7 @@ import json
 import re
 from typing import Any, Dict, Iterable, List, Tuple
 
+from .postprocess import build_messages_for_job
 from .providers import OpenAIResponsesProvider, ProviderExecutionError
 
 
@@ -50,9 +51,10 @@ def execute_postprocess_jobs(
             continue
 
         schema = _json_schema_for_expected_output(job["expected_output"])
+        messages = job.get("messages") or build_messages_for_job(job)
         try:
             provider_result = provider.run_structured_messages(
-                messages=job["messages"],
+                messages=messages,
                 schema_name=_schema_name(job["job_id"]),
                 schema=schema,
                 metadata={"job_id": job["job_id"], "sample_id": job["sample_id"], "mode": job["mode"]},

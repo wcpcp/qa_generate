@@ -116,7 +116,7 @@ def _build_single_job(
         "fallback_policy": task_policy.get("fallback_policy", "use_canonical"),
         "facts": facts,
         "visual_assets": visual_assets,
-        "messages": _build_messages(prompt, visual_assets, requires_visual),
+        "prompt_text": prompt,
         "expected_output": schema,
     }
 
@@ -716,6 +716,10 @@ def _build_messages(prompt_text: str, visual_assets: Dict[str, Any], requires_vi
             content.append({"type": "image_url", "image_url": {"url": _image_data_url(visual_assets["erp_image_path"])}})
         return [{"role": "user", "content": content}]
     return [{"role": "user", "content": prompt_text}]
+
+
+def build_messages_for_job(job: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return _build_messages(job["prompt_text"], job.get("visual_assets", {}), bool(job.get("requires_visual")))
 
 
 def _image_data_url(image_path: str) -> str:
