@@ -170,6 +170,7 @@ class OpenAIResponsesProvider:
 
     def _post_json_with_curl(self, url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         # 用 curl 执行实际请求，适合作为一些 OpenAI-compatible 中转的稳妥路径。
+        payload_text = json.dumps(payload, ensure_ascii=False)
         command = [
             "curl",
             "-sS",
@@ -182,15 +183,17 @@ class OpenAIResponsesProvider:
             "-X",
             "POST",
             url,
-            "-d",
-            json.dumps(payload, ensure_ascii=False),
+            "--data-binary",
+            "@-",
             "-w",
             "\n%{http_code}",
         ]
         try:
-            completed = subprocess.run(command, capture_output=True, text=True, check=False)
+            completed = subprocess.run(command, input=payload_text, capture_output=True, text=True, check=False)
         except FileNotFoundError as exc:
             raise ProviderExecutionError(f"curl is not available: {exc}")
+        except OSError as exc:
+            raise ProviderExecutionError(f"curl request failed before execution: {exc}")
 
         if completed.returncode != 0:
             stderr = completed.stderr.strip() or completed.stdout.strip()
