@@ -55,6 +55,51 @@ def build_entity_visual_context(scene: SceneMetadata, entity: Entity) -> Dict[st
         return assets
 
 
+def build_grounding_visual_context(scene: SceneMetadata, entity: Entity) -> Dict[str, Any]:
+    # 为 grounding 任务准备四面透视图，而不是直接把整张 ERP 原图发给模型。
+    # 这四张图固定覆盖 front / right / back / left 四个水平朝向，
+    # 并在目标可见时绘制细框，便于模型在多图条件下核查 BFOV / bbox。
+    assets = {
+        "erp_image_path": scene.erp_image_path,
+        "image_available": bool(scene.erp_image_path and Path(scene.erp_image_path).exists()),
+        "mode": "erp_four_faces",
+        "perspective_images": [],
+    }
+    if not assets["image_available"] or np is None or Image is None:
+        return assets
+
+    try:
+        out_dir = Path(tempfile.gettempdir()) / "erp_grounding_context"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        base_name = f"{scene.scene_id}_{entity.entity_id}"
+        faces = [
+            ("front", 0.0),
+            ("right", 90.0),
+            ("back", 180.0),
+            ("left", 270.0),
+        ]
+        pitch_deg = 90.0
+        fov_deg = 100.0
+        generated = []
+        for face_name, yaw_deg in faces:
+            output_path = out_dir / f"{base_name}_{face_name}.jpg"
+            _save_context_view(scene, entity, output_path, yaw_deg, pitch_deg, fov_deg, 768, 768)
+            generated.append(
+                {
+                    "path": str(output_path),
+                    "kind": "grounding_face",
+                    "face_name": face_name,
+                    "yaw_deg": round(yaw_deg, 1),
+                    "pitch_deg": round(pitch_deg, 1),
+                    "fov_deg": round(fov_deg, 1),
+                }
+            )
+        assets["perspective_images"] = generated
+        return assets
+    except Exception:
+        return assets
+
+
 def _save_context_view(
     scene: SceneMetadata,
     entity: Entity,

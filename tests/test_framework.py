@@ -107,7 +107,8 @@ class FrameworkTestCase(unittest.TestCase):
             },
         )
         self.assertEqual(validation["status"], "accepted")
-        self.assertEqual(merged["canonical_answer"], 5)
+        self.assertEqual(merged["final_answer"], "After checking the full panorama carefully, there are 5 chairs visible.")
+        self.assertTrue(merged["llm_repackaged"])
 
     def test_scene_bundle_contains_postprocess_plan(self) -> None:
         bundle = build_scene_bundle(str(EXAMPLE_SCENE))

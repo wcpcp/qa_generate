@@ -63,17 +63,6 @@ def execute_postprocess_jobs(
 
         merged, validation = _merge_postprocess_output(sample, job, provider_result["output_json"])
         if validation["status"] == "accepted":
-            merged["postprocess"] = {
-                "job_id": job["job_id"],
-                "mode": job["mode"],
-                "provider": provider_result["provider"],
-                "model": provider_result["model"],
-                "response_id": provider_result.get("response_id"),
-                "usage": provider_result.get("usage"),
-                "cache_key": provider_result.get("cache_key"),
-                "validation": validation,
-                "output_json": provider_result["output_json"],
-            }
             final_samples.append(merged)
             processed_ids.add(sample["sample_id"])
             continue
@@ -98,8 +87,8 @@ def execute_postprocess_jobs(
         "summary": {
             "job_count": len(jobs),
             "final_sample_count": len(final_samples),
-            "processed_count": len([sample for sample in final_samples if "postprocess" in sample]),
-            "passthrough_count": len([sample for sample in final_samples if sample.get("finalization_source", "").startswith("canonical")]),
+            "processed_count": len([sample for sample in final_samples if sample.get("llm_repackaged")]),
+            "passthrough_count": len([sample for sample in final_samples if not sample.get("llm_repackaged")]),
             "filtered_count": len(filtered_ids),
             "unresolved_count": len(unresolved_jobs),
         },
@@ -145,8 +134,6 @@ def _handle_unresolved(
             "task_family": sample["task_family"],
             "fallback_policy": fallback_policy,
             "reason": reason,
-            "output_json": output_json,
-            "validation": validation,
         }
     )
     if fallback_policy == "use_canonical":
@@ -183,14 +170,8 @@ def _merge_counting(sample: Dict[str, Any], output_json: Dict[str, Any]) -> Tupl
         return copy.deepcopy(sample), {"status": "rejected", "reason": "verified_count_not_reflected_in_full_answer"}
 
     final_sample = _canonical_as_final(sample, source="llm_postprocess")
-    final_sample["canonical_answer"] = verified_count
-    final_sample["answer_text"] = full_answer
     final_sample["final_question"] = question
-    final_sample["final_answer_text"] = full_answer
-    final_sample["messages"] = [
-        {"role": "user", "content": question},
-        {"role": "assistant", "content": full_answer},
-    ]
+    final_sample["final_answer"] = full_answer
     return final_sample, {"status": "accepted", "decision": decision or "keep", "corrected": verified_count != sample.get("canonical_answer")}
 
 
@@ -206,13 +187,8 @@ def _merge_caption(sample: Dict[str, Any], output_json: Dict[str, Any]) -> Tuple
         return copy.deepcopy(sample), {"status": "rejected", "reason": "empty_caption_answer"}
 
     final_sample = _canonical_as_final(sample, source="llm_postprocess")
-    final_sample["answer_text"] = full_answer
     final_sample["final_question"] = question
-    final_sample["final_answer_text"] = full_answer
-    final_sample["messages"] = [
-        {"role": "user", "content": question},
-        {"role": "assistant", "content": full_answer},
-    ]
+    final_sample["final_answer"] = full_answer
     return final_sample, {"status": "accepted", "decision": decision}
 
 
@@ -226,29 +202,24 @@ def _merge_text_repackage(sample: Dict[str, Any], output_json: Dict[str, Any]) -
 
     final_sample = _canonical_as_final(sample, source="llm_postprocess")
     final_sample["final_question"] = question
-    final_sample["final_answer_text"] = full_answer
-    final_sample["messages"] = [
-        {"role": "user", "content": question},
-        {"role": "assistant", "content": final_sample["final_answer_text"]},
-    ]
+    final_sample["final_answer"] = full_answer
     return final_sample, {"status": "accepted"}
 
 
 def _canonical_as_final(sample: Dict[str, Any], *, source: str) -> Dict[str, Any]:
-    # 把 canonical sample 包装成最终输出格式。
-    final_sample = copy.deepcopy(sample)
-    for key in [
-        "postprocess_disposition",
-        "postprocess_job_id",
-        "postprocess_mode",
-        "postprocess_requires_visual",
-        "postprocess_fallback_policy",
-        "postprocess_reason",
-    ]:
-        final_sample.pop(key, None)
-    final_sample["finalization_source"] = source
-    final_sample["final_question"] = sample["canonical_question"]
-    final_sample["final_answer_text"] = sample["answer_text"]
+    # 把 canonical sample 收缩成最终保留结构：
+    # 只保留任务/能力、原始 QA、是否经过 LLM，以及新的 QA。
+    final_sample = {
+        "sample_id": sample["sample_id"],
+        "scene_id": sample["scene_id"],
+        "task_family": sample["task_family"],
+        "ability": sample.get("ability"),
+        "original_question": sample["canonical_question"],
+        "original_answer": sample["answer_text"],
+        "llm_repackaged": source == "llm_postprocess",
+        "final_question": sample["canonical_question"],
+        "final_answer": sample["answer_text"],
+    }
     return final_sample
 
 
