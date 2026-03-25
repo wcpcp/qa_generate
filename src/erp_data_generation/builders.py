@@ -446,7 +446,9 @@ def _realize_distance_estimation(
         )
         metadata = {
             "reference_label": reference.label,
+            "reference_ref": _grounding_ref(reference),
             "candidate_labels": [candidate.label for candidate in candidates],
+            "candidate_refs": {candidate.label: _grounding_ref(candidate) for candidate in candidates},
             "distance_measure": "center_to_center_3d_distance",
             "candidate_distances_m": {
                 candidate.label: round(distance, 3)
@@ -478,6 +480,7 @@ def _realize_distance_estimation(
         metadata = {
             "reference_label": "observer",
             "candidate_labels": [candidate.label for _, candidate in candidate_depths],
+            "candidate_refs": {candidate.label: _grounding_ref(candidate) for _, candidate in candidate_depths},
             "distance_measure": "depth_to_camera_center",
             "candidate_depths_m": {
                 candidate.label: round(depth, 3)
@@ -674,7 +677,9 @@ def _pair_metadata(scene: SceneMetadata, entity_a: Entity, entity_b: Entity) -> 
         "entity_a": entity_a.entity_id,
         "entity_b": entity_b.entity_id,
         "entity_a_label": entity_a.label,
+        "entity_a_ref": _grounding_ref(entity_a),
         "entity_b_label": entity_b.label,
+        "entity_b_ref": _grounding_ref(entity_b),
         "depth_a_m": round(float(entity_a.entity_center_depth), 2) if entity_a.entity_center_depth is not None else None,
         "depth_b_m": round(float(entity_b.entity_center_depth), 2) if entity_b.entity_center_depth is not None else None,
         "yaw_a_deg": round(_yaw_deg_360(entity_a), 1),

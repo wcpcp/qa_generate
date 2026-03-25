@@ -199,8 +199,8 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
     elif mode == "relative_direction_repackage":
         facts.update(
             {
-                "entity_a": _entity_relation_stub(entities[0]),
-                "entity_b": _entity_relation_stub(entities[1]),
+                "entity_a": _entity_relation_stub(entities[0], metadata.get("entity_a_ref"), metadata.get("yaw_a_deg"), metadata.get("bfov_a")),
+                "entity_b": _entity_relation_stub(entities[1], metadata.get("entity_b_ref"), metadata.get("yaw_b_deg"), metadata.get("bfov_b")),
                 "delta_bearing_deg": round(
                     ((entities[0].lon_deg % 360.0) - (entities[1].lon_deg % 360.0) + 180.0) % 360.0 - 180.0,
                     2,
@@ -222,11 +222,16 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
         else:
             facts.update(
                 {
-                    "target": {"label": metadata.get("target_label")},
+                    "target": {
+                        "label": metadata.get("target_label"),
+                        "entity_ref": metadata.get("entity_ref"),
+                        "bfov": metadata.get("bfov"),
+                    },
                     "rotation": {
                         "angle_deg": metadata.get("turn_angle_deg"),
                         "direction": metadata.get("rotation_direction"),
                     },
+                    "original_sector": _coarse_direction_from_yaw(float(metadata.get("yaw_deg"))) if metadata.get("yaw_deg") is not None else None,
                     "canonical_direction": sample["canonical_answer"],
                 }
             )
@@ -235,7 +240,8 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
             facts.update(
                 {
                     "reference_label": metadata.get("reference_label"),
-                    "candidate_objects": metadata.get("candidate_labels", []),
+                    "reference_ref": metadata.get("reference_ref"),
+                    "candidate_objects": _candidate_ref_list(metadata.get("candidate_labels", []), metadata.get("candidate_refs", {})),
                     "distance_measure": metadata.get("distance_measure"),
                     "candidate_distances_m": metadata.get("candidate_distances_m"),
                     "nearest_candidate": sample["canonical_answer"],
@@ -245,14 +251,21 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
             facts.update(
                 {
                     "reference_label": "observer",
-                    "candidate_objects": metadata.get("candidate_labels", []),
+                    "candidate_objects": _candidate_ref_list(metadata.get("candidate_labels", []), metadata.get("candidate_refs", {})),
                     "distance_measure": metadata.get("distance_measure"),
                     "candidate_depths_m": metadata.get("candidate_depths_m"),
                     "nearest_candidate": sample["canonical_answer"],
                 }
             )
         else:
-            facts.update({"target_label": metadata.get("target_label"), "depth_m": metadata.get("depth_m")})
+            facts.update(
+                {
+                    "target_label": metadata.get("target_label"),
+                    "target_ref": metadata.get("entity_ref"),
+                    "target_bfov": metadata.get("bfov"),
+                    "depth_m": metadata.get("depth_m"),
+                }
+            )
     elif mode == "relative_3d_position_repackage":
         entity_a, entity_b = entities
         xyz_a = entity_a.resolved_xyz_camera
@@ -266,8 +279,8 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
             ]
         facts.update(
             {
-                "entity_a": _entity_3d_stub(entity_a),
-                "entity_b": _entity_3d_stub(entity_b),
+                "entity_a": _entity_3d_stub(entity_a, metadata.get("entity_a_ref")),
+                "entity_b": _entity_3d_stub(entity_b, metadata.get("entity_b_ref")),
                 "delta_xyz_m": delta_xyz,
                 "canonical_relation": sample["canonical_answer"],
                 "geometry_source": sample.get("geometry_source", "explicit_xyz"),
@@ -300,16 +313,56 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
     return facts
 
 
-def _entity_relation_stub(entity: Entity) -> Dict[str, Any]:
-    return {"label": entity.label}
+def _entity_relation_stub(
+    entity: Entity,
+    entity_ref: Optional[str] = None,
+    yaw_deg: Optional[float] = None,
+    bfov: Optional[Any] = None,
+) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {"label": entity.label}
+    if entity_ref:
+        payload["entity_ref"] = entity_ref
+    if yaw_deg is not None:
+        payload["yaw_deg"] = yaw_deg
+    if bfov is not None:
+        payload["bfov"] = bfov
+    return payload
 
 
-def _entity_3d_stub(entity: Entity) -> Dict[str, Any]:
-    xyz = entity.resolved_xyz_camera
+def _entity_3d_stub(entity: Entity, entity_ref: Optional[str] = None) -> Dict[str, Any]:
     payload = {"label": entity.label}
+    if entity_ref:
+        payload["entity_ref"] = entity_ref
+    xyz = entity.resolved_xyz_camera
     if xyz is not None:
         payload["xyz_camera_m"] = [round(float(value), 3) for value in xyz]
     return payload
+
+
+def _candidate_ref_list(candidate_labels: List[str], candidate_refs: Dict[str, str]) -> List[Dict[str, Any]]:
+    return [
+        {
+            "label": label,
+            "entity_ref": candidate_refs.get(label, label),
+        }
+        for label in candidate_labels
+    ]
+
+
+def _coarse_direction_from_yaw(yaw_deg: float) -> str:
+    sectors = [
+        "in front of",
+        "front-right of",
+        "right of",
+        "behind-right of",
+        "behind",
+        "behind-left of",
+        "left of",
+        "front-left of",
+    ]
+    normalized = yaw_deg % 360.0
+    index = int(((normalized + 22.5) % 360.0) // 45.0)
+    return sectors[index]
 
 
 def _visual_assets(scene: SceneMetadata, sample: Dict[str, Any], entities: List[Entity], mode: str) -> Dict[str, Any]:
@@ -450,11 +503,11 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
             facts_json,
             "relative direction",
             [
-                "Read the two target entities and the provided delta_bearing_deg first.",
-                "Use that horizontal angular difference to understand the relative direction more directly.",
+                "Read the two target entities, their referring phrases, and their yaw or BFOV cues first.",
+                "Use the per-object orientation cues first, and then use delta_bearing_deg only as a support fact rather than the whole task definition.",
                 "Interpret this as a horizontal panorama relation only; do not introduce above or below language.",
                 "Keep the relative direction truth unchanged.",
-                "full_answer may include one short explanatory clause before or after the final relation.",
+                "full_answer may include one short explanatory clause based on their relative horizontal placement before or after the final relation.",
             ],
             "full_answer must preserve the exact relative direction label.",
             allow_reasoning=True,
@@ -494,8 +547,9 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
             facts_json,
             "view transform",
             [
-                "Read the turn direction and angle carefully.",
+                "Read the target label, entity_ref, original BFOV cue, original_sector, turn direction, and turn angle carefully.",
                 "Use the provided rotation facts instead of inventing a new transform.",
+                "You may briefly describe the original viewing direction and the shifted viewing direction, but preserve the canonical direction truth exactly.",
                 "Rewrite the QA clearly so there is no left/right turn ambiguity.",
             ],
             "The question must explicitly mention turning left or turning right.",
@@ -508,9 +562,10 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
                 facts_json,
                 "candidate distance comparison",
                 [
-                    "Read the reference_label, candidate_objects, distance_measure, and candidate_distances_m carefully.",
+                    "Read the reference_label, reference_ref, candidate_objects, distance_measure, and candidate_distances_m carefully.",
                     "Treat the provided candidate_distances_m as deterministic ground-truth support facts for the answer.",
                     "Do not reorder or replace the candidate set, and do not change which candidate is the nearest one.",
+                    "Use the provided referring phrases to make the target objects easier to identify than plain labels alone.",
                     "Rewrite the question naturally as a multi-choice nearest-distance comparison in 3D space.",
                     "full_answer may briefly mention that the chosen object is the nearest under the stated metric.",
                 ],
@@ -525,6 +580,7 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
                     "Read the candidate_objects, candidate_depths_m, and the observer reference carefully.",
                     "Treat the provided candidate_depths_m as deterministic ground-truth support facts for the answer.",
                     "Do not reorder or replace the candidate set, and do not change which candidate is nearest to the observer.",
+                    "Use the candidate referring phrases to make the question more specific than plain object labels alone.",
                     "Rewrite the question naturally as a multi-choice nearest-to-observer comparison.",
                     "full_answer may briefly mention that the chosen object has the smallest observer depth.",
                 ],
@@ -535,8 +591,9 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
             facts_json,
             "distance estimation",
             [
-                "Read the absolute depth value in meters.",
+                "Read the target label, target_ref, target BFOV cue, and the absolute depth value in meters.",
                 "Keep the numeric answer stable.",
+                "Use the referring phrase to keep the question specific when there may be multiple objects of the same class.",
                 "Rewrite the QA naturally without changing the unit or magnitude.",
             ],
             "full_answer must preserve the same meter value.",
@@ -548,12 +605,13 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
             facts_json,
             "relative 3D position",
             [
-                "Read the provided xyz_camera_m coordinates first when they are available.",
+                "Read the two target entities, their referring phrases, and the already-computed geometric support facts first.",
                 "Use the already-computed geometry rather than recomputing from scratch.",
                 "Read the rule-derived 3D relation carefully.",
                 "Keep the 3D relation truth unchanged.",
                 "If multiple axis relations are present, preserve all of them and do not drop any axis.",
-                "If you include a short analysis, make it consistent with delta_xyz_m and mention only the axes that are active in the canonical relation.",
+                "Do not expose raw xyz coordinates in the final answer unless the question explicitly asks for them.",
+                "If you include a short analysis, express it as natural relative-axis reasoning that stays consistent with the canonical relation.",
                 "full_answer may include a short, correct geometric analysis before giving the final relation.",
             ],
             "full_answer must preserve the same 3D relation label, including every active axis relation.",
