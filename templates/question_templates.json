@@ -132,22 +132,22 @@
     "Which listed object is closest to the camera in this ERP scene: {candidate_list}?"
   ],
   "relative_3d_position.open": [
-    "What is the camera-centric 3D relation of the {entity_a} relative to the {entity_b}?",
-    "Describe the 3D offset of the {entity_a} compared with the {entity_b}.",
-    "How is the {entity_a} positioned in 3D space relative to the {entity_b}?",
-    "Compared with the {entity_b}, where is the {entity_a} in 3D space?",
-    "Which 3D relation best describes the {entity_a} relative to the {entity_b}?",
-    "Which description best matches the 3D position of the {entity_a} relative to the {entity_b}?",
-    "In 3D space, where would you place the {entity_a} compared with the {entity_b}?",
-    "Is the {entity_a} left of, right of, above, below, in front of, or behind the {entity_b}?",
-    "Which standard 3D spatial relation best matches the {entity_a} relative to the {entity_b}?"
+    "What is the camera-centric 3D relation of {entity_a} relative to {entity_b}?",
+    "Describe the 3D offset of {entity_a} compared with {entity_b}.",
+    "How is {entity_a} positioned in 3D space relative to {entity_b}?",
+    "Compared with {entity_b}, where is {entity_a} in 3D space?",
+    "Which 3D relation best describes {entity_a} relative to {entity_b}?",
+    "Which description best matches the 3D position of {entity_a} relative to {entity_b}?",
+    "In 3D space, where would you place {entity_a} compared with {entity_b}?",
+    "Is {entity_a} left of, right of, above, below, in front of, or behind {entity_b}?",
+    "Which standard 3D spatial relation best matches {entity_a} relative to {entity_b}?"
   ],
   "relative_3d_position.choice": [
-    "Which option best describes the 3D position of the {entity_a} relative to the {entity_b}: {choice_list}?",
-    "Choose the best camera-centric 3D relation for the {entity_a} relative to the {entity_b}: {choice_list}.",
-    "Among the following 3D relations, which one matches the {entity_a} compared with the {entity_b}: {choice_list}?",
-    "Select the most accurate 3D relation of the {entity_a} with respect to the {entity_b}: {choice_list}.",
-    "Which listed relation best fits the {entity_a} relative to the {entity_b} in 3D space: {choice_list}?"
+    "Which option best describes the 3D position of {entity_a} relative to {entity_b}: {choice_list}?",
+    "Choose the best camera-centric 3D relation for {entity_a} relative to {entity_b}: {choice_list}.",
+    "Among the following 3D relations, which one matches {entity_a} compared with {entity_b}: {choice_list}?",
+    "Select the most accurate 3D relation of {entity_a} with respect to {entity_b}: {choice_list}.",
+    "Which listed relation best fits {entity_a} relative to {entity_b} in 3D space: {choice_list}?"
   ],
   "seam_continuity.same_instance_yesno": [
     "Do the left-edge and right-edge fragments of the {target_label} refer to the same object?",

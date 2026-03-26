@@ -532,8 +532,8 @@ def _realize_relative_3d_position(
         metadata["relative_3d_mode"] = "camera_centric_choice"
         metadata["choice_candidates"] = choices
         question = template.format(
-            entity_a=_display_label(entity_a.label),
-            entity_b=_display_label(entity_b.label),
+            entity_a=_grounding_ref(entity_a),
+            entity_b=_grounding_ref(entity_b),
             choice_list=", ".join(choices),
         )
         answer_text = _pick_answer_template(answer_templates, "relative_3d_position.choice", template_seed, relation=answer)
@@ -541,7 +541,7 @@ def _realize_relative_3d_position(
 
     template_key = "relative_3d_position.open"
     template, index = _pick_template(templates, template_key, template_seed)
-    question = template.format(entity_a=_display_label(entity_a.label), entity_b=_display_label(entity_b.label))
+    question = template.format(entity_a=_grounding_ref(entity_a), entity_b=_grounding_ref(entity_b))
     metadata["relative_3d_mode"] = "camera_centric_open"
     answer_text = _pick_answer_template(answer_templates, "relative_3d_position", template_seed, relation=answer)
     return question, answer, answer_text, metadata, None, template_key, index
@@ -892,8 +892,8 @@ def _depth_relation(entity_a: Entity, entity_b: Entity) -> str:
 
 
 def _relative_3d_relation(entity_a: Entity, entity_b: Entity) -> str:
-    xyz_a = entity_a.resolved_xyz_camera
-    xyz_b = entity_b.resolved_xyz_camera
+    xyz_a = entity_a.erp_consistent_xyz_camera
+    xyz_b = entity_b.erp_consistent_xyz_camera
     if xyz_a is None or xyz_b is None:
         return _depth_relation(entity_a, entity_b)
     dx = float(xyz_a[0]) - float(xyz_b[0])
@@ -916,8 +916,8 @@ def _relative_3d_relation(entity_a: Entity, entity_b: Entity) -> str:
 
 
 def _build_relative_3d_choices(entity_a: Entity, entity_b: Entity, answer: str) -> List[str]:
-    xyz_a = entity_a.resolved_xyz_camera
-    xyz_b = entity_b.resolved_xyz_camera
+    xyz_a = entity_a.erp_consistent_xyz_camera
+    xyz_b = entity_b.erp_consistent_xyz_camera
     if xyz_a is None or xyz_b is None:
         return [answer, "left of", "right of", "in front of"]
 

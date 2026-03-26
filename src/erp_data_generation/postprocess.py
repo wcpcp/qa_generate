@@ -288,8 +288,8 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
             )
     elif mode == "relative_3d_position_repackage":
         entity_a, entity_b = entities
-        xyz_a = entity_a.resolved_xyz_camera
-        xyz_b = entity_b.resolved_xyz_camera
+        xyz_a = entity_a.erp_consistent_xyz_camera
+        xyz_b = entity_b.erp_consistent_xyz_camera
         delta_xyz = None
         if xyz_a is not None and xyz_b is not None:
             delta_xyz = [
@@ -353,7 +353,7 @@ def _entity_3d_stub(entity: Entity, entity_ref: Optional[str] = None) -> Dict[st
     payload = {"label": entity.label}
     if entity_ref:
         payload["entity_ref"] = entity_ref
-    xyz = entity.resolved_xyz_camera
+    xyz = entity.erp_consistent_xyz_camera
     if xyz is not None:
         payload["xyz_camera_m"] = [round(float(value), 3) for value in xyz]
     return payload

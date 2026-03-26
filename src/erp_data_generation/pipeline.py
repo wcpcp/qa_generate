@@ -227,13 +227,16 @@ def _task_feasible_for_pair(
         return supported, blockers, "erp_angular"
 
     if task_family == "relative_3d_position":
-        xyz_a = entity_a.resolved_xyz_camera
-        xyz_b = entity_b.resolved_xyz_camera
-        supported = (xyz_a is not None and xyz_b is not None) or (entity_a.has_depth and entity_b.has_depth)
-        blockers = [] if supported else ["entity_center_depth_or_entity_xyz_camera"]
-        geometry_source = "explicit_xyz"
-        if entity_a.entity_xyz_camera is None or entity_b.entity_xyz_camera is None:
-            geometry_source = "depth_relation_only"
+        xyz_a = _relative_3d_xyz(entity_a)
+        xyz_b = _relative_3d_xyz(entity_b)
+        supported = (
+            xyz_a is not None
+            and xyz_b is not None
+            and _relative_3d_entity_allowed(entity_a)
+            and _relative_3d_entity_allowed(entity_b)
+        )
+        blockers = [] if supported else ["erp_consistent_xyz_or_compact_bfov"]
+        geometry_source = "erp_bfov_depth_derived"
         return supported, blockers, geometry_source
 
     missing = [
@@ -823,8 +826,11 @@ def _has_clear_relative_3d_relation(entity_a: Entity, entity_b: Entity) -> bool:
     # relative_3d_position 现在采用“多轴保留”的关系表达：
     # 只要某个轴差值超过阈值，就把该轴对应的相对关系写进答案。
     # 如果三个轴都不明显，才视为近似重合，这类样本直接不出题。
-    xyz_a = entity_a.resolved_xyz_camera
-    xyz_b = entity_b.resolved_xyz_camera
+    if not (_relative_3d_entity_allowed(entity_a) and _relative_3d_entity_allowed(entity_b)):
+        return False
+
+    xyz_a = _relative_3d_xyz(entity_a)
+    xyz_b = _relative_3d_xyz(entity_b)
     if xyz_a is None or xyz_b is None:
         return False
 
@@ -832,6 +838,25 @@ def _has_clear_relative_3d_relation(entity_a: Entity, entity_b: Entity) -> bool:
     dy = abs(float(xyz_a[1]) - float(xyz_b[1]))
     dz = abs(float(xyz_a[2]) - float(xyz_b[2]))
     return _axis_clear_x(entity_a, entity_b, dx) or _axis_clear_y(entity_a, entity_b, dy) or dz >= 0.6
+
+
+def _relative_3d_xyz(entity: Entity) -> Optional[Tuple[float, float, float]]:
+    return entity.erp_consistent_xyz_camera
+
+
+def _relative_3d_entity_allowed(entity: Entity) -> bool:
+    bfov = entity.resolved_bfov
+    if bfov is None:
+        return False
+    x_fov = abs(float(bfov[2]))
+    y_fov = abs(float(bfov[3]))
+    area = x_fov * y_fov
+    # 过大的目标更容易跨越大范围深度，中心点难以稳定代表整个物体。
+    if area > 1800.0:
+        return False
+    if x_fov > 45.0 or y_fov > 45.0:
+        return False
+    return entity.entity_center_depth is not None
 
 
 def _sample_relative_3d_mode(scene_id: str, entity_a_id: str, entity_b_id: str) -> str:

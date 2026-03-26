@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from math import cos, degrees, sin
+from math import cos, degrees, radians, sin
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -207,6 +207,30 @@ class Entity:
                 float(self.entity_bfov[3]),
             )
         return None
+
+    @property
+    def erp_consistent_xyz_camera(self) -> Optional[Tuple[float, float, float]]:
+        # 这是专门给 ERP 几何任务使用的“球面一致坐标”。
+        # 它优先使用 BFOV 中心 + median depth 推导，避免 seam-crossing 物体的显式 xyz
+        # 因为普通 bbox center 计算中心角而发生偏转。
+        if self.entity_center_depth is None:
+            return None
+
+        depth = float(self.entity_center_depth)
+        bfov = self.resolved_bfov
+        if bfov is not None:
+            yaw_rad = radians(float(bfov[0]))
+            pitch_rad = radians(float(bfov[1]))
+            x = depth * cos(pitch_rad) * sin(yaw_rad)
+            y = depth * sin(-pitch_rad)
+            z = depth * cos(pitch_rad) * cos(yaw_rad)
+            return (x, y, z)
+
+        lon, lat = self.lon_lat
+        x = depth * cos(lat) * sin(lon)
+        y = depth * sin(lat)
+        z = depth * cos(lat) * cos(lon)
+        return (x, y, z)
 
 
 @dataclass
