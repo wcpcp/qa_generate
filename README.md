@@ -55,7 +55,7 @@
 - `counting` 可以纠错
 - 其他任务只允许改写，不允许改真值
 
-### 3. 视觉输入当前默认用 ERP 图
+### 3. 视觉输入按任务类型处理
 
 当前 metadata 里有：
 
@@ -66,11 +66,19 @@
 
 但没有稳定可直接读取的透视图文件路径。
 
-所以当前实现默认是：
+所以当前实现采用的是：
 
-- `counting` 直接使用整张 ERP 图
-- 其他进入后处理的规则任务主要依赖结构化事实
-- object localization 主表达优先使用 `BFOV`
+- `counting`
+  - 不在 prepare 阶段提前生成图片
+  - execute 阶段再从 ERP 原图即时渲染四张透视图
+  - 四张图顺序是 `front / right / back / left`
+  - 用它们共同表示同一个 360 场景，再做重数和验证
+- `grounding`
+  - 不做视觉验证
+  - 只做文本重包装
+  - object localization 主表达优先使用 `BFOV`
+- 其他进入后处理的规则任务
+  - 主要依赖结构化事实
 
 后面如果你们补充了透视图路径映射，可以继续把 representative view crop 接进来。
 
@@ -79,7 +87,7 @@
 ### 需要视觉后处理
 
 - `counting`
-  - 模型看 ERP 全图
+  - 模型看四张由 ERP 渲染的透视图
   - 必须重新核查计数
   - 如果原答案错误，允许纠正
   - 如果无法确认，直接过滤
@@ -133,6 +141,7 @@ execute 阶段主脚本：
 - `postprocess_jobs.jsonl`
 
 不会重新读取 metadata，也不会重新生成模板 QA。
+当前 execute 默认是**场景级并行**，可通过 `--workers` 控制并发 scene 数。
 
 ## 快速开始
 
@@ -190,7 +199,8 @@ export SL_KEY=...
 python3 scripts/execute_postprocess.py \
   --input /tmp/qa_prepare \
   --base-url https://api.siliconflow.cn/v1 \
-  --model Qwen/Qwen3.5-27B
+  --model Qwen/Qwen3.5-27B \
+  --workers 8
 ```
 
 使用本地或内网部署的 vLLM / OpenAI-compatible 服务：
@@ -201,14 +211,15 @@ export OPENAI_API_KEY=dummy
 python3 scripts/execute_postprocess.py \
   --input /tmp/qa_prepare \
   --base-url http://10.14.114.135:18000/v1 \
-  --model your_vllm_model_name
+  --model your_vllm_model_name \
+  --workers 8
 ```
 
 注意：
 
 - `--base-url` 最好写到 `/v1`，当前代码会自动请求 `.../chat/completions`
 - 如果服务不做鉴权，也建议提供一个占位 `OPENAI_API_KEY=dummy`
-- 当前第二阶段包含视觉任务，如 `counting` 和 `grounding`
+- 当前第二阶段包含视觉任务，如 `counting`
 - 因此你部署的模型必须是支持多模态输入的 vision-language model，而不是纯文本模型
 
 这一步会额外导出：
