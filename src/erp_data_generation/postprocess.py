@@ -192,7 +192,7 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
         facts.update({"target": target, "grounding_mode": sample.get("generation_mode")})
     elif mode == "direct_direction_repackage":
         target: Dict[str, Any] = {"label": metadata.get("target_label"), "entity_ref": metadata.get("entity_ref")}
-        if sample.get("generation_mode") == "precise_yaw_pitch":
+        if sample.get("generation_mode") == "precise_bfov":
             target["bfov"] = metadata.get("bfov")
         facts.update(
             {
@@ -204,31 +204,57 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
     elif mode == "relative_direction_repackage":
         facts.update(
             {
-                "entity_a": _entity_relation_stub(entities[0], metadata.get("entity_a_ref"), metadata.get("yaw_a_deg"), metadata.get("bfov_a")),
-                "entity_b": _entity_relation_stub(entities[1], metadata.get("entity_b_ref"), metadata.get("yaw_b_deg"), metadata.get("bfov_b")),
-                "delta_bearing_deg": round(
-                    ((entities[0].lon_deg % 360.0) - (entities[1].lon_deg % 360.0) + 180.0) % 360.0 - 180.0,
+                "reference": _entity_relation_stub(entities[0], metadata.get("entity_a_ref"), metadata.get("yaw_a_deg"), metadata.get("bfov_a")),
+                "target": _entity_relation_stub(entities[1], metadata.get("entity_b_ref"), metadata.get("yaw_b_deg"), metadata.get("bfov_b")),
+                "delta_yaw_deg": round(
+                    ((entities[1].lon_deg % 360.0) - (entities[0].lon_deg % 360.0) + 180.0) % 360.0 - 180.0,
                     2,
                 ),
+                "relation_space": ["right", "back-right", "opposite", "back-left", "left"],
                 "canonical_relation": sample["canonical_answer"],
             }
         )
     elif mode == "view_transform_repackage":
-        facts.update(
-            {
-                "target": {
-                    "label": metadata.get("target_label"),
-                    "entity_ref": metadata.get("entity_ref"),
-                    "bfov": metadata.get("bfov"),
-                },
-                "rotation": {
-                    "angle_deg": metadata.get("turn_angle_deg"),
-                    "direction": metadata.get("rotation_direction"),
-                },
-                "original_sector": _coarse_direction_from_yaw(float(metadata.get("yaw_deg"))) if metadata.get("yaw_deg") is not None else None,
-                "canonical_direction": sample["canonical_answer"],
-            }
-        )
+        if sample.get("generation_mode") == "object_conditioned_reorientation":
+            facts.update(
+                {
+                    "facing_target": _entity_relation_stub(
+                        entities[0],
+                        metadata.get("facing_ref"),
+                        metadata.get("facing_yaw_deg"),
+                        metadata.get("facing_bfov"),
+                    ),
+                    "query_target": _entity_relation_stub(
+                        entities[1],
+                        metadata.get("target_ref"),
+                        metadata.get("target_yaw_deg"),
+                        metadata.get("target_bfov"),
+                    ),
+                    "delta_yaw_deg": metadata.get("delta_yaw_deg"),
+                    "relation_space": ["right", "back-right", "behind", "back-left", "left"],
+                    "transform_mode": "object_conditioned_reorientation",
+                    "canonical_direction": sample["canonical_answer"],
+                }
+            )
+        else:
+            facts.update(
+                {
+                    "target": {
+                        "label": metadata.get("target_label"),
+                        "entity_ref": metadata.get("entity_ref"),
+                        "bfov": metadata.get("bfov"),
+                    },
+                    "rotation": {
+                        "angle_deg": metadata.get("turn_angle_deg"),
+                        "direction": metadata.get("rotation_direction"),
+                    },
+                    "delta_after_rotation_deg": metadata.get("delta_after_rotation_deg"),
+                    "original_absolute_sector": _coarse_direction_from_yaw(float(metadata.get("yaw_deg"))) if metadata.get("yaw_deg") is not None else None,
+                    "relation_space": ["right", "back-right", "behind", "back-left", "left"],
+                    "transform_mode": "camera_rotation_transform",
+                    "canonical_direction": sample["canonical_answer"],
+                }
+            )
     elif mode == "distance_estimation_repackage":
         if sample.get("generation_mode") == "candidate_nearest_choice":
             facts.update(
@@ -345,14 +371,14 @@ def _candidate_ref_list(candidate_labels: List[str], candidate_refs: Dict[str, s
 
 def _coarse_direction_from_yaw(yaw_deg: float) -> str:
     sectors = [
-        "in front of",
-        "front-right of",
-        "right of",
-        "behind-right of",
-        "behind",
-        "behind-left of",
-        "left of",
-        "front-left of",
+        "front",
+        "front-right",
+        "right",
+        "back-right",
+        "back",
+        "back-left",
+        "left",
+        "front-left",
     ]
     normalized = yaw_deg % 360.0
     index = int(((normalized + 22.5) % 360.0) // 45.0)
@@ -487,10 +513,10 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
     if mode == "direct_direction_repackage":
         return _deterministic_prompt(
             facts_json,
-            "direct direction",
+            "absolute directional localization",
             [
                 "Read the target label, entity_ref, and direction_mode first.",
-                "Decide whether the target answer is precise BFOV or a coarse 8-way direction.",
+                "Decide whether the target answer is precise BFOV or a coarse absolute 8-way panorama sector.",
                 "If the answer is precise, treat BFOV as the full spherical localization target.",
                 "Preserve the direction truth exactly.",
                 "Rewrite the QA in a more varied style.",
@@ -502,27 +528,45 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
     if mode == "relative_direction_repackage":
         return _deterministic_prompt(
             facts_json,
-            "relative direction",
+            "panoramic angular relation",
             [
-                "Read the two target entities, their referring phrases, and their yaw or BFOV cues first.",
-                "Use the per-object orientation cues first, and then use delta_bearing_deg only as a support fact rather than the whole task definition.",
-                "Interpret this as a horizontal panorama relation only; do not introduce above or below language.",
+                "Read the reference target and query target, together with their referring phrases and yaw or BFOV cues first.",
+                "Interpret the task as a viewer-centered angular relation on the 360 panorama ring rather than a true 3D front or back relation.",
+                "Use the per-object yaw or BFOV cues first, and then use delta_yaw_deg only as a support fact rather than the whole task definition.",
+                "Stay within the allowed relation space right / back-right / opposite / back-left / left.",
                 "Keep the relative direction truth unchanged.",
-                "full_answer may include one short explanatory clause based on their relative horizontal placement before or after the final relation.",
+                "full_answer may include one short explanatory clause about the angular offset around the panorama ring before or after the final relation.",
             ],
             "full_answer must preserve the exact relative direction label.",
             allow_reasoning=True,
         )
 
     if mode == "view_transform_repackage":
+        if sample.get("generation_mode") == "object_conditioned_reorientation":
+            return _deterministic_prompt(
+                facts_json,
+                "object-conditioned reorientation",
+                [
+                    "Read the facing_target, query_target, and their yaw or BFOV cues first.",
+                    "Treat the facing_target as the new forward direction in the reoriented view.",
+                    "Interpret the answer in the new observer-centered view, not as a true 3D relation between objects.",
+                    "Stay within the allowed relation space right / back-right / behind / back-left / left.",
+                    "Use delta_yaw_deg only as a supporting geometric fact.",
+                    "Rewrite the QA clearly so it is obvious that the observer first turns to face the reference target.",
+                ],
+                "full_answer must preserve the same reoriented-view direction label exactly.",
+                allow_reasoning=True,
+            )
         return _deterministic_prompt(
             facts_json,
-            "view transform",
+            "camera rotation transform",
             [
-                "Read the target label, entity_ref, original BFOV cue, original_sector, turn direction, and turn angle carefully.",
-                "Use the provided rotation facts instead of inventing a new transform.",
-                "You may briefly describe the original viewing direction and the shifted viewing direction, but preserve the canonical direction truth exactly.",
-                "Rewrite the QA clearly so there is no left/right turn ambiguity.",
+                "Read the target label, entity_ref, original BFOV cue, original_absolute_sector, turn direction, and turn angle carefully.",
+                "Use the provided explicit camera rotation instead of inventing a new transform.",
+                "Interpret the answer in the reoriented observer view, not as a world-coordinate relation.",
+                "Stay within the allowed relation space right / back-right / behind / back-left / left.",
+                "You may briefly mention the original absolute sector and the shifted view, but preserve the canonical direction truth exactly.",
+                "Rewrite the QA clearly so there is no left or right turn ambiguity.",
             ],
             "The question must explicitly mention turning left or turning right.",
             allow_reasoning=True,

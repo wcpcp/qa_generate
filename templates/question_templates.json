@@ -83,54 +83,28 @@
     "In broad panorama terms, where is {entity_ref} located around the observer?"
   ],
   "relative_direction": [
-    "Relative to the {entity_b}, where is the {entity_a} in the panorama?",
-    "What is the panorama direction of the {entity_a} with respect to the {entity_b}?",
-    "Compared with the {entity_b}, where does the {entity_a} appear?",
-    "From the position of the {entity_b}, which relative direction best matches the {entity_a}?",
-    "How is the {entity_a} positioned relative to the {entity_b} in ERP space?",
-    "Where would you place the {entity_a} relative to the {entity_b} in the panorama?",
-    "In broad ERP direction terms, where is the {entity_a} compared with the {entity_b}?",
-    "Which horizontal panorama relation best describes the {entity_a} relative to the {entity_b}?",
-    "Is the {entity_a} in front of, behind, left of, right of, or diagonally offset from the {entity_b}?"
+    "On the 360 panorama ring, where is {target_ref} relative to {reference_ref}: right, back-right, opposite, back-left, or left?",
+    "Compared with {reference_ref}, which panoramic ring sector contains {target_ref}: right, back-right, opposite, back-left, or left?",
+    "On the horizontal panorama circle, where does {target_ref} lie relative to {reference_ref}?",
+    "If {reference_ref} is used as the angular reference on the panoramic ring, is {target_ref} to the right, back-right, opposite, back-left, or left?",
+    "Which panoramic angular relation best describes {target_ref} with respect to {reference_ref}?",
+    "On the ERP horizontal ring around the observer, where is {target_ref} compared with {reference_ref}?",
+    "Using {reference_ref} as the reference target on the panorama ring, which side-sector best matches {target_ref}?",
+    "How is {target_ref} distributed around the 360 panorama ring relative to {reference_ref}?"
   ],
-  "view_transform.turn_right_90": [
-    "If the observer turns 90° to the {rotation_direction}, which 8-way direction will {entity_ref} move to?",
-    "After rotating the viewing heading 90° to the {rotation_direction}, where would the {target_label} appear?",
-    "If you turn 90° to the {rotation_direction}, what coarse direction will {entity_ref} be in?"
+  "view_transform.camera_rotation_transform": [
+    "If you rotate your view by {turn_angle_deg}° to the {rotation_direction}, where would {entity_ref} appear: right, back-right, behind, back-left, or left?",
+    "After turning {turn_angle_deg}° to the {rotation_direction}, where is {entity_ref} in the reoriented view?",
+    "Suppose the observer rotates {turn_angle_deg}° to the {rotation_direction}. Which direction best matches {entity_ref}: right, back-right, behind, back-left, or left?",
+    "Once the viewing direction is rotated {turn_angle_deg}° to the {rotation_direction}, where should {entity_ref} appear?",
+    "In the new view after a {turn_angle_deg}° {rotation_direction} turn, is {entity_ref} on the right, back-right, behind, back-left, or left?"
   ],
-  "view_transform.turn_left_90": [
-    "If the observer turns 90° to the {rotation_direction}, which 8-way direction will {entity_ref} move to?",
-    "After rotating the viewing heading 90° to the {rotation_direction}, where would the {target_label} appear?",
-    "If you turn 90° to the {rotation_direction}, what coarse direction will {entity_ref} be in?"
-  ],
-  "view_transform.object_anchored_facing": [
-    "If you stand by the {standing_label} and face the {facing_label}, where is the {target_label} in 8-way direction terms?",
-    "Using the {standing_label} as your standing point and looking toward the {facing_label}, which direction is the {target_label}?",
-    "If you are positioned at the {standing_label} and treat the {facing_label} as straight ahead, is the {target_label} front, back, left, right, front-left, front-right, back-left, or back-right?",
-    "Imagine standing next to the {standing_label} and facing the {facing_label}. In that local view, where would the {target_label} be?",
-    "Take the {standing_label} as your position and the direction toward the {facing_label} as forward. Which 8-way direction best matches the {target_label}?",
-    "Suppose you move to the {standing_label} and look directly at the {facing_label}. Is the {target_label} to your front, front-left, left, back-left, back, back-right, right, or front-right?",
-    "From the viewpoint of the {standing_label}, with the {facing_label} defining straight ahead, what is the relative direction of the {target_label}?",
-    "Move to the {standing_label} and orient yourself toward the {facing_label}. In that object-centered view, which way is the {target_label}?",
-    "If the direction from the {standing_label} to the {facing_label} is treated as local front, where does the {target_label} lie?",
-    "Stand at the {standing_label} and use the {facing_label} as the forward reference. What 8-way direction best describes the {target_label}?"
-  ],
-  "view_transform.object_anchored_back_to": [
-    "If you stand by the {standing_label} with your back toward the {facing_label}, where is the {target_label} in 8-way direction terms?",
-    "Using the {standing_label} as your standing point and keeping the {facing_label} behind you, which direction is the {target_label}?",
-    "If you are positioned at the {standing_label} and treat the opposite of the {facing_label} direction as straight ahead, is the {target_label} front, back, left, right, front-left, front-right, back-left, or back-right?",
-    "Imagine standing next to the {standing_label} with your back to the {facing_label}. In that local view, where would the {target_label} be?",
-    "Take the {standing_label} as your position and let the {facing_label} define your backward direction. Which 8-way direction best matches the {target_label}?",
-    "Suppose you move to the {standing_label} and deliberately turn away from the {facing_label}. Is the {target_label} to your front, front-left, left, back-left, back, back-right, right, or front-right?",
-    "From the viewpoint of the {standing_label}, with the {facing_label} directly behind you, what is the relative direction of the {target_label}?",
-    "Stand at the {standing_label} and keep the {facing_label} at your back. In that object-centered view, which way is the {target_label}?",
-    "If the opposite direction from the {standing_label} to the {facing_label} is treated as local front, where does the {target_label} lie?",
-    "Use the {standing_label} as your position and imagine turning your back toward the {facing_label}. What 8-way direction best describes the {target_label}?"
-  ],
-  "view_transform.object_anchored_direction": [
-    "If you stand by the {standing_label} and face the {facing_label}, where is the {target_label} in 8-way direction terms?",
-    "Using the {standing_label} as your standing point and looking toward the {facing_label}, which direction is the {target_label}?",
-    "If you are positioned at the {standing_label} and treat the {facing_label} as straight ahead, is the {target_label} front, back, left, right, front-left, front-right, back-left, or back-right?"
+  "view_transform.object_conditioned_reorientation": [
+    "If you turn to face {facing_ref}, where would {target_ref} appear: right, back-right, behind, back-left, or left?",
+    "After reorienting so that {facing_ref} becomes straight ahead, where is {target_ref} in the new view?",
+    "Use {facing_ref} as the new forward direction. Where does {target_ref} lie: right, back-right, behind, back-left, or left?",
+    "If {facing_ref} is treated as the new front of the panorama, where would {target_ref} appear?",
+    "Once you face {facing_ref}, is {target_ref} to your right, back-right, behind, back-left, or left?"
   ],
   "distance_estimation": [
     "What is the estimated center depth of the {target_label} in meters?",

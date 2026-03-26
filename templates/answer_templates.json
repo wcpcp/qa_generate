@@ -67,10 +67,10 @@
   ],
   "view_transform": [
     "{direction}",
-    "After the turn, it appears in the {direction} direction.",
-    "The transformed direction becomes {direction}.",
-    "Under that local view, the correct direction is {direction}.",
-    "In that transformed reference frame, it is {direction}."
+    "In the reoriented view, it is {direction}.",
+    "After the view change, it appears {direction}.",
+    "Under the transformed viewing direction, it falls {direction}.",
+    "In that new reference frame, the correct direction is {direction}."
   ],
   "distance_estimation": [
     "{depth_m}",

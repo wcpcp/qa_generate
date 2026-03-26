@@ -201,8 +201,13 @@ def _realize_task(
         entity_a, entity_b = entities
         template_key = "relative_direction"
         template, index = _pick_template(templates, template_key, template_seed)
-        question = template.format(entity_a=_display_label(entity_a.label), entity_b=_display_label(entity_b.label))
-        answer_value = _relative_direction(entity_a, entity_b)
+        question = template.format(
+            reference_ref=_grounding_ref(entity_a),
+            target_ref=_grounding_ref(entity_b),
+            reference_label=_display_label(entity_a.label),
+            target_label=_display_label(entity_b.label),
+        )
+        answer_value = _panoramic_ring_relation(entity_a, entity_b, opposite_label="opposite") or "right"
         answer_text = _pick_answer_template(answer_templates, "relative_direction", template_seed, relation=answer_value)
         return question, answer_value, answer_text, _pair_metadata(scene, entity_a, entity_b), None, template_key, index
 
@@ -336,12 +341,12 @@ def _realize_direct_direction(
     answer_templates: Dict[str, List[str]],
     template_seed: str,
 ) -> Tuple[str, Any, str, Dict[str, Any], Optional[Dict[str, Any]], str, int]:
-    if generation_mode == "cardinal_8way":
+    if generation_mode == "absolute_sector_8way":
         template_key = "direct_direction.cardinal"
         template, index = _pick_template(templates, template_key, template_seed)
         answer = _cardinal_direction_from_yaw(_yaw_deg_360(entity))
         question = template.format(entity_ref=_grounding_ref(entity), target_label=_display_label(entity.label))
-        metadata = {**_entity_loc_metadata(scene, entity), "direction_mode": "cardinal_8way"}
+        metadata = {**_entity_loc_metadata(scene, entity), "direction_mode": "absolute_sector_8way"}
         answer_text = _pick_answer_template(answer_templates, "direct_direction.cardinal", template_seed, direction=answer)
         return question, answer, answer_text, metadata, None, template_key, index
 
@@ -350,7 +355,7 @@ def _realize_direct_direction(
     bfov = _entity_bfov(scene, entity)
     question = template.format(entity_ref=_grounding_ref(entity), target_label=_display_label(entity.label))
     answer_value = {"bfov": bfov}
-    metadata = {**_entity_loc_metadata(scene, entity), "direction_mode": "precise_yaw_pitch"}
+    metadata = {**_entity_loc_metadata(scene, entity), "direction_mode": "precise_bfov"}
     answer_text = _pick_answer_template(
         answer_templates,
         "direct_direction.precise",
@@ -369,33 +374,29 @@ def _realize_view_transform(
     answer_templates: Dict[str, List[str]],
     template_seed: str,
 ) -> Tuple[str, Any, str, Dict[str, Any], Optional[Dict[str, Any]], str, int]:
-    mode = generation_mode or "turn_right_90"
+    mode = generation_mode or "camera_rotation_transform"
     template_key = f"view_transform.{mode}"
     template, index = _pick_template(templates, template_key, template_seed)
 
-    if mode in {"object_anchored_facing", "object_anchored_back_to", "object_anchored_direction"}:
-        standing, facing, target = entities
-        if mode == "object_anchored_back_to":
-            answer = _object_anchored_direction(standing, facing, target, invert_forward=True)
-            reference_frame = "standing_at_object_with_back_toward_object_center"
-            orientation_text = "back_to"
-        else:
-            answer = _object_anchored_direction(standing, facing, target, invert_forward=False)
-            reference_frame = "standing_at_object_and_facing_object_center"
-            orientation_text = "facing"
+    if mode == "object_conditioned_reorientation":
+        facing, target = entities
+        answer = _panoramic_ring_relation(facing, target, opposite_label="behind") or "right"
         metadata = {
-            "standing_label": standing.label,
             "facing_label": facing.label,
+            "facing_ref": _grounding_ref(facing),
+            "facing_yaw_deg": round(_yaw_deg_360(facing), 1),
+            "facing_bfov": _entity_bfov(scene, facing),
             "target_label": target.label,
-            "standing_bbox_norm_1000": _normalized_bbox_1000(scene, standing),
-            "facing_bbox_norm_1000": _normalized_bbox_1000(scene, facing),
-            "target_bbox_norm_1000": _normalized_bbox_1000(scene, target),
-            "reference_frame": reference_frame,
-            "orientation_mode": orientation_text,
+            "target_ref": _grounding_ref(target),
+            "target_yaw_deg": round(_yaw_deg_360(target), 1),
+            "target_bfov": _entity_bfov(scene, target),
+            "delta_yaw_deg": round(_wrapped_delta_deg(_yaw_deg_360(target) - _yaw_deg_360(facing)), 2),
+            "transform_mode": "object_conditioned_reorientation",
         }
         question = template.format(
-            standing_label=_display_label(standing.label),
+            facing_ref=_grounding_ref(facing),
             facing_label=_display_label(facing.label),
+            target_ref=_grounding_ref(target),
             target_label=_display_label(target.label),
         )
         answer_text = _pick_answer_template(answer_templates, "view_transform", template_seed, direction=answer)
@@ -403,19 +404,25 @@ def _realize_view_transform(
 
     entity = entities[0]
     turn_angle_deg = int(task.get("rotation_angle_deg", 90))
-    if mode == "turn_left_90":
-        rotation_direction = "left"
-        new_direction = _cardinal_direction_from_yaw(_yaw_deg_360(entity) + turn_angle_deg)
+    rotation_direction = str(task.get("rotation_direction") or "right")
+    if rotation_direction == "left":
+        delta_after_rotation = _wrapped_delta_deg(_yaw_deg_360(entity) + turn_angle_deg)
     else:
-        rotation_direction = "right"
-        new_direction = _cardinal_direction_from_yaw(_yaw_deg_360(entity) - turn_angle_deg)
+        delta_after_rotation = _wrapped_delta_deg(_yaw_deg_360(entity) - turn_angle_deg)
+    new_direction = _panoramic_relation_from_delta(delta_after_rotation, opposite_label="behind") or "right"
     question = template.format(
         turn_angle_deg=turn_angle_deg,
         entity_ref=_grounding_ref(entity),
         target_label=_display_label(entity.label),
         rotation_direction=rotation_direction,
     )
-    metadata = {**_entity_loc_metadata(scene, entity), "turn_angle_deg": turn_angle_deg, "rotation_direction": rotation_direction}
+    metadata = {
+        **_entity_loc_metadata(scene, entity),
+        "turn_angle_deg": turn_angle_deg,
+        "rotation_direction": rotation_direction,
+        "delta_after_rotation_deg": round(delta_after_rotation, 2),
+        "transform_mode": "camera_rotation_transform",
+    }
     answer_text = _pick_answer_template(answer_templates, "view_transform", template_seed, direction=new_direction)
     return question, new_direction, answer_text, metadata, None, template_key, index
 
@@ -845,35 +852,35 @@ def _pitch_deg_180(entity: Entity) -> float:
 def _cardinal_direction_from_yaw(yaw_deg: float) -> str:
     sectors = [
         "front",
-        "front_right",
+        "front-right",
         "right",
-        "back_right",
+        "back-right",
         "back",
-        "back_left",
+        "back-left",
         "left",
-        "front_left",
+        "front-left",
     ]
     idx = int(((yaw_deg % 360.0) + 22.5) // 45.0) % 8
     return sectors[idx]
 
 
-def _relative_direction(entity_a: Entity, entity_b: Entity) -> str:
-    delta_yaw = _wrapped_delta_deg(_yaw_deg_360(entity_a) - _yaw_deg_360(entity_b))
-    if -22.5 <= delta_yaw < 22.5:
-        return "in front of"
-    if 22.5 <= delta_yaw < 67.5:
-        return "front-right of"
-    if 67.5 <= delta_yaw < 112.5:
-        return "right of"
-    if 112.5 <= delta_yaw < 157.5:
-        return "behind-right of"
-    if delta_yaw >= 157.5 or delta_yaw < -157.5:
-        return "behind"
-    if -157.5 <= delta_yaw < -112.5:
-        return "behind-left of"
-    if -112.5 <= delta_yaw < -67.5:
-        return "left of"
-    return "front-left of"
+def _panoramic_ring_relation(reference: Entity, target: Entity, *, opposite_label: str) -> Optional[str]:
+    delta_yaw = _wrapped_delta_deg(_yaw_deg_360(target) - _yaw_deg_360(reference))
+    return _panoramic_relation_from_delta(delta_yaw, opposite_label=opposite_label)
+
+
+def _panoramic_relation_from_delta(delta_yaw: float, *, opposite_label: str) -> Optional[str]:
+    if abs(delta_yaw) < 15.0:
+        return None
+    if 15.0 <= delta_yaw < 90.0:
+        return "right"
+    if 90.0 <= delta_yaw < 150.0:
+        return "back-right"
+    if delta_yaw >= 150.0 or delta_yaw < -150.0:
+        return opposite_label
+    if -150.0 <= delta_yaw < -90.0:
+        return "back-left"
+    return "left"
 
 
 def _depth_relation(entity_a: Entity, entity_b: Entity) -> str:
@@ -991,35 +998,6 @@ def _approx_axis_radius(entity: Entity, axis: str) -> float:
     return float(depth) * math.tan(math.radians(fov / 2.0))
 
 
-def _object_anchored_direction(
-    standing: Entity,
-    facing: Entity,
-    target: Entity,
-    *,
-    invert_forward: bool = False,
-) -> str:
-    standing_xyz = standing.resolved_xyz_camera
-    facing_xyz = facing.resolved_xyz_camera
-    target_xyz = target.resolved_xyz_camera
-    if standing_xyz is None or facing_xyz is None or target_xyz is None:
-        return "front"
-
-    fx = float(facing_xyz[0]) - float(standing_xyz[0])
-    fz = float(facing_xyz[2]) - float(standing_xyz[2])
-    tx = float(target_xyz[0]) - float(standing_xyz[0])
-    tz = float(target_xyz[2]) - float(standing_xyz[2])
-    if invert_forward:
-        fx = -fx
-        fz = -fz
-    if (fx * fx + fz * fz) < 1e-6 or (tx * tx + tz * tz) < 1e-6:
-        return "front"
-
-    dot = fx * tx + fz * tz
-    cross = fx * tz - fz * tx
-    angle = degrees_from_radians(_safe_atan2(cross, dot))
-    return _angle_to_8way(angle)
-
-
 def _center_distance_3d(entity_a: Entity, entity_b: Entity) -> float:
     xyz_a = entity_a.resolved_xyz_camera
     xyz_b = entity_b.resolved_xyz_camera
@@ -1032,21 +1010,6 @@ def _center_distance_3d(entity_a: Entity, entity_b: Entity) -> float:
         + (float(xyz_a[1]) - float(xyz_b[1])) ** 2
         + (float(xyz_a[2]) - float(xyz_b[2])) ** 2
     ) ** 0.5
-
-
-def _angle_to_8way(angle_deg: float) -> str:
-    sectors = [
-        "front",
-        "front_left",
-        "left",
-        "back_left",
-        "back",
-        "back_right",
-        "right",
-        "front_right",
-    ]
-    idx = int(((angle_deg + 22.5) % 360.0) // 45.0)
-    return sectors[idx]
 
 
 def _safe_atan2(y: float, x: float) -> float:
@@ -1111,7 +1074,7 @@ def _cap_scene_samples(samples: List[Dict[str, Any]], max_samples: int = 20) -> 
         "distance_estimation": 3,
         "relative_direction": 2,
         "relative_3d_position": 2,
-        "view_transform": 1,
+        "view_transform": 2,
         "seam_continuity": 1,
         "polar_distortion_awareness": 1,
     }

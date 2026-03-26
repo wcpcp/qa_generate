@@ -107,8 +107,17 @@ NEGATIVE_EXISTENCE_CANDIDATES = [
     "trash can",
     "whiteboard",
 ]
-VIEW_TRANSFORM_MAX_PAIR_DISTANCE_M = 2.0
-VIEW_TRANSFORM_MIN_TARGET_MARGIN_DEG = 10.0
+PANORAMIC_RELATION_MIN_DELTA_DEG = 15.0
+CAMERA_ROTATION_OPTIONS = [
+    ("right", 90),
+    ("left", 90),
+    ("right", 135),
+    ("left", 135),
+    ("right", 180),
+    ("left", 180),
+]
+
+
 def load_scene_metadata(input_path: str) -> SceneMetadata:
     # 从磁盘读取一个 scene metadata JSON，并归一化为内部结构。
     data = json.loads(Path(input_path).read_text(encoding="utf-8"))
@@ -416,6 +425,7 @@ def _make_task(
     generation_mode: Optional[str] = None,
     answer_space: Optional[str] = None,
     rotation_angle_deg: Optional[int] = None,
+    rotation_direction: Optional[str] = None,
     query_target: Optional[str] = None,
 ) -> Dict[str, Any]:
     # scene plan 里的每个 task 都统一走这个函数组装。
@@ -447,6 +457,8 @@ def _make_task(
         payload["answer_space"] = answer_space
     if rotation_angle_deg is not None:
         payload["rotation_angle_deg"] = rotation_angle_deg
+    if rotation_direction:
+        payload["rotation_direction"] = rotation_direction
     if query_target:
         payload["query_target"] = query_target
     return payload
@@ -571,14 +583,14 @@ def _build_anchor_tasks(scene: SceneMetadata, anchor_item: Dict[str, Any]) -> Li
     supported, _ = _task_feasible_for_entity("direct_direction", scene, entity)
     if supported:
         mode = _sample_direct_direction_mode(scene.scene_id, anchor_id)
-        difficulty = "medium" if mode == "precise_yaw_pitch" else "easy"
+        difficulty = "medium" if mode == "precise_bfov" else "easy"
         tasks.append(
             _make_task(
                 "direct_direction",
                 difficulty,
                 entity_ids=[anchor_id],
                 evidence_fields=["lon_lat"],
-                answer_space="yaw_pitch_degree_or_8way_direction",
+                answer_space="bfov_or_absolute_sector_label",
                 generation_mode=mode,
             )
         )
@@ -647,10 +659,11 @@ def _should_generate_dense_caption(scene: SceneMetadata, entity: Entity) -> bool
 
 
 def _sample_direct_direction_mode(scene_id: str, entity_id: str) -> str:
-    # 对每个实体稳定随机地在两种 direct_direction 模式中选一种，
-    # 避免同一个物体同时生成 precise 和 cardinal 两条问题。
+    # 对每个实体稳定随机地在两种绝对定位模式中选一种：
+    # 1. precise_bfov
+    # 2. absolute_sector_8way
     digest = hashlib.md5(f"{scene_id}:direct_direction:{entity_id}".encode("utf-8")).hexdigest()
-    return "precise_yaw_pitch" if int(digest[:8], 16) % 2 == 0 else "cardinal_8way"
+    return "precise_bfov" if int(digest[:8], 16) % 2 == 0 else "absolute_sector_8way"
 
 
 def _sample_grounding_mode(scene_id: str, entity_id: str) -> str:
@@ -695,11 +708,6 @@ def _sample_polar_shape_mode(scene_id: str, entity_id: str, abs_lat_deg: float) 
 def _build_contextual_anchor_tasks(scene: SceneMetadata, anchor_item: Dict[str, Any]) -> List[Dict[str, Any]]:
     # 围绕 anchor 再构造需要额外上下文的任务：
     # 1. 多候选最近物体选择型 distance_estimation
-    #
-    # 注：
-    # 以物体为站位和朝向基准的 object-anchored view_transform
-    # 当前先停用。原因是它对“可站位点”“物体中心代理”“局部参考系”的几何假设过强，
-    # 在真实数据上容易出现不稳定样本。后续如果要重启，建议先引入更可靠的局部站位定义。
     anchor = anchor_item["entity"]
     tasks: List[Dict[str, Any]] = []
 
@@ -749,15 +757,17 @@ def _pair_task_difficulty(anchor_item: Dict[str, Any], partner_payload: Dict[str
 
 
 def _build_pair_tasks(scene: SceneMetadata, anchor_item: Dict[str, Any], partners: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    # pairwise 任务按用户定义只保留：
-    # relative_direction / relative_3d_position
-    # 并且控制数量，避免 pair 任务远多于其他能力。
+    # pairwise 任务当前包含：
+    # 1. relative_direction: panoramic angular relation on the 360 ring
+    # 2. relative_3d_position
+    # 3. view_transform.object_conditioned_reorientation
     anchor = anchor_item["entity"]
     tasks: List[Dict[str, Any]] = []
     for index, partner_payload in enumerate(partners[:2]):
         partner = partner_payload["entity"]
         pair_ids = [anchor.entity_id, partner.entity_id]
-        if index == 0:
+        relation = _panoramic_ring_relation_from_yaws(_yaw_deg_360(anchor), _yaw_deg_360(partner), opposite_label="opposite")
+        if index == 0 and relation is not None:
             pair_difficulty = _pair_task_difficulty(anchor_item, partner_payload, "relative_direction")
             tasks.append(
                 _make_task(
@@ -766,10 +776,27 @@ def _build_pair_tasks(scene: SceneMetadata, anchor_item: Dict[str, Any], partner
                     entity_ids=pair_ids,
                     evidence_fields=["lon_lat"],
                     partner_role=partner_payload["role"],
-                    answer_space="relative_yaw_pitch_direction_label",
-                    generation_mode="erp_relative_direction",
+                    answer_space="panoramic_ring_relation_label",
+                    generation_mode="panoramic_angular_relation",
                 )
             )
+            reoriented_relation = _panoramic_ring_relation_from_yaws(
+                _yaw_deg_360(anchor),
+                _yaw_deg_360(partner),
+                opposite_label="behind",
+            )
+            if reoriented_relation is not None:
+                tasks.append(
+                    _make_task(
+                        "view_transform",
+                        "hard",
+                        entity_ids=pair_ids,
+                        evidence_fields=["bfov", "lon_lat"],
+                        partner_role=partner_payload["role"],
+                        answer_space="reoriented_view_direction_label",
+                        generation_mode="object_conditioned_reorientation",
+                    )
+                )
 
         supported, _, geometry_source = _task_feasible_for_pair("relative_3d_position", scene, anchor, partner)
         if supported and _has_clear_relative_3d_relation(anchor, partner):
@@ -815,102 +842,36 @@ def _sample_relative_3d_mode(scene_id: str, entity_a_id: str, entity_b_id: str) 
 
 
 def _build_rotation_tasks(scene: SceneMetadata, anchors: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    # rotation task 不是依赖真实相机姿态，而是利用 ERP 自身的旋转规则来构造。
-    # 当前只保留 view_transform。
-    # rotation_consistency_augmentation 更适合作为最后的数据增强阶段：先整体旋转 ERP 图，再同步修改答案。
+    # 相机旋转型 view_transform：
+    # 显式给定观察者旋转角度后，要求判断目标在新视角中的方向。
     if not anchors or not _scene_rotation_supported(scene):
         return []
-    first_anchor = anchors[0]["entity"]
+    candidate_tasks: List[Tuple[str, int, str, Entity]] = []
+    for anchor_item in anchors:
+        entity = anchor_item["entity"]
+        for rotation_direction, angle_deg in CAMERA_ROTATION_OPTIONS:
+            relation = _camera_rotation_relation(entity, rotation_direction, angle_deg)
+            if relation is None:
+                continue
+            digest = hashlib.md5(
+                f"{scene.scene_id}:camera_rotation:{entity.entity_id}:{rotation_direction}:{angle_deg}".encode("utf-8")
+            ).hexdigest()
+            candidate_tasks.append((digest, angle_deg, rotation_direction, entity))
+    if not candidate_tasks:
+        return []
+    _, angle_deg, rotation_direction, entity = sorted(candidate_tasks, key=lambda item: item[0])[0]
     return [
         _make_task(
             "view_transform",
             "hard",
-            entity_ids=[first_anchor.entity_id],
-            evidence_fields=["lon_lat"],
-            answer_space="eight_way_direction_label",
-            rotation_angle_deg=90,
-            generation_mode="turn_right_90",
-        ),
-        _make_task(
-            "view_transform",
-            "hard",
-            entity_ids=[first_anchor.entity_id],
-            evidence_fields=["lon_lat"],
-            answer_space="eight_way_direction_label",
-            rotation_angle_deg=90,
-            generation_mode="turn_left_90",
-        ),
+            entity_ids=[entity.entity_id],
+            evidence_fields=["bfov", "lon_lat"],
+            answer_space="reoriented_view_direction_label",
+            rotation_angle_deg=angle_deg,
+            rotation_direction=rotation_direction,
+            generation_mode="camera_rotation_transform",
+        )
     ]
-
-
-def _select_object_anchored_view_entities(
-    scene: SceneMetadata,
-    standing: Entity,
-) -> Optional[Tuple[Entity, Entity, Entity]]:
-    # 选择一组三元组：
-    # standing 作为站位物体，facing 作为正前方基准，target 作为要判断方向的目标。
-    # 这里刻意做得保守一些：
-    # 1. standing 只允许比较像“可站在旁边”的锚点物体
-    # 2. 三个物体必须都具有显式 xyz
-    # 3. 三者两两距离都不能太远，避免局部参考系题失真
-    if not _is_relocatable_view_anchor(standing):
-        return None
-    standing_xyz = standing.resolved_xyz_camera
-    if standing_xyz is None or standing.entity_xyz_camera is None:
-        return None
-
-    candidates: List[Tuple[float, Entity]] = []
-    for entity in scene.entities:
-        if entity.entity_id == standing.entity_id:
-            continue
-        xyz = entity.resolved_xyz_camera
-        if xyz is None or entity.entity_xyz_camera is None:
-            continue
-        distance = _euclidean_distance(standing_xyz, xyz)
-        if distance < 0.35:
-            continue
-        if distance > VIEW_TRANSFORM_MAX_PAIR_DISTANCE_M:
-            continue
-        candidates.append((distance, entity))
-    if len(candidates) < 2:
-        return None
-    candidates.sort(key=lambda item: item[0])
-
-    # facing 优先用最近且稳定的物体，比较符合“站在 A 旁边面向最近的 B”这类问法。
-    facing = candidates[0][1]
-    target: Optional[Entity] = None
-    best_score: Optional[Tuple[float, float, float]] = None
-    for distance, entity in candidates[1:]:
-        if entity.entity_id == facing.entity_id:
-            continue
-        if entity.label == facing.label:
-            continue
-        facing_target_distance = _euclidean_distance(
-            facing.resolved_xyz_camera,
-            entity.resolved_xyz_camera,
-        )
-        if facing_target_distance > VIEW_TRANSFORM_MAX_PAIR_DISTANCE_M:
-            continue
-        angle = _object_anchored_angle_deg(standing, facing, entity)
-        if angle is None:
-            continue
-        direction = _angle_to_8way_label(angle)
-        margin = _eight_way_boundary_margin(angle)
-        if margin < VIEW_TRANSFORM_MIN_TARGET_MARGIN_DEG:
-            continue
-        # 优先选择方向边界更清晰的 target，避免恰好落在 8 向分界附近。
-        # 同时略微偏向非 front 方向，让题目更有信息量。
-        score = (
-            margin,
-            1.0 if direction != "front" else 0.0,
-            distance,
-        )
-        if best_score is None or score > best_score:
-            best_score = score
-            target = entity
-    if target is None:
-        return None
-    return standing, facing, target
 
 
 def _select_distance_choice_entities(
@@ -1035,62 +996,36 @@ def _approx_axis_radius(entity: Entity, axis: str) -> float:
     return float(depth) * math.tan(math.radians(fov / 2.0))
 
 
-def _object_anchored_angle_deg(standing: Entity, facing: Entity, target: Entity) -> Optional[float]:
-    standing_xyz = standing.resolved_xyz_camera
-    facing_xyz = facing.resolved_xyz_camera
-    target_xyz = target.resolved_xyz_camera
-    if standing_xyz is None or facing_xyz is None or target_xyz is None:
+def _panoramic_ring_relation_from_yaws(reference_yaw: float, target_yaw: float, *, opposite_label: str) -> Optional[str]:
+    delta_yaw = _wrapped_delta_deg(target_yaw - reference_yaw)
+    if abs(delta_yaw) < PANORAMIC_RELATION_MIN_DELTA_DEG:
         return None
-
-    fx = float(facing_xyz[0]) - float(standing_xyz[0])
-    fz = float(facing_xyz[2]) - float(standing_xyz[2])
-    tx = float(target_xyz[0]) - float(standing_xyz[0])
-    tz = float(target_xyz[2]) - float(standing_xyz[2])
-    if (fx * fx + fz * fz) < 1e-6 or (tx * tx + tz * tz) < 1e-6:
-        return None
-
-    import math
-
-    dot = fx * tx + fz * tz
-    cross = fx * tz - fz * tx
-    return math.degrees(math.atan2(cross, dot))
+    if 15.0 <= delta_yaw < 90.0:
+        return "right"
+    if 90.0 <= delta_yaw < 150.0:
+        return "back-right"
+    if delta_yaw >= 150.0 or delta_yaw < -150.0:
+        return opposite_label
+    if -150.0 <= delta_yaw < -90.0:
+        return "back-left"
+    return "left"
 
 
-def _angle_to_8way_label(angle_deg: float) -> str:
-    sectors = [
-        "front",
-        "front_left",
-        "left",
-        "back_left",
-        "back",
-        "back_right",
-        "right",
-        "front_right",
-    ]
-    idx = int(((angle_deg + 22.5) % 360.0) // 45.0)
-    return sectors[idx]
+def _camera_rotation_relation(entity: Entity, rotation_direction: str, angle_deg: int) -> Optional[str]:
+    yaw = _yaw_deg_360(entity)
+    observer_forward = float(angle_deg) if rotation_direction == "right" else -float(angle_deg)
+    return _panoramic_ring_relation_from_yaws(observer_forward % 360.0, yaw, opposite_label="behind")
 
 
-def _eight_way_boundary_margin(angle_deg: float) -> float:
-    normalized = (angle_deg + 22.5) % 45.0
-    return min(normalized, 45.0 - normalized)
+def _yaw_deg_360(entity: Entity) -> float:
+    return float(entity.lon_deg) % 360.0
 
 
-def _is_relocatable_view_anchor(entity: Entity) -> bool:
-    # 站位锚点物体做保守筛选：
-    # 1. 需要显式 xyz，避免仅靠推导几何
-    # 2. 尽量是画面下半部、尺寸适中的物体，减少“站在画框旁边”这类不自然站位
-    # 3. 不用 seam / pole 邻近的异常 case
-    if entity.entity_xyz_camera is None:
-        return False
-    if entity.area_ratio < 0.003:
-        return False
-    if entity.seam_crossing_flag or entity.pole_proximity_flag:
-        return False
-    pitch_deg = max(0.0, min(180.0, 90.0 - entity.lat_deg))
-    if pitch_deg < 95.0 or pitch_deg > 150.0:
-        return False
-    return True
+def _wrapped_delta_deg(delta: float) -> float:
+    delta = ((delta + 180.0) % 360.0) - 180.0
+    if delta == -180.0:
+        return 180.0
+    return delta
 
 
 def _build_cognitive_map_understanding_tasks(scene: SceneMetadata) -> List[Dict[str, Any]]:
