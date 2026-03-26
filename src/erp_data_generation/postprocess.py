@@ -164,11 +164,6 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
         facts.update(
             {
                 "query_target": metadata.get("query_target"),
-                "canonical_count": sample["canonical_answer"],
-                "scan_hint": (
-                    "Scan the ERP image from left to right once, be careful at the left/right seam, "
-                    "and avoid double-counting partially visible duplicates."
-                ),
             }
         )
     elif mode == "existence_positive_repackage":
@@ -454,15 +449,14 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
             "- Together they cover the full 360 scene.\n\n"
             "Think step by step internally:\n"
             "1. Inspect all four perspective views together as one 360 scene.\n"
-            "2. Do not assume the canonical count is correct.\n"
-            "3. Re-count the queried category from the visual evidence across the four views.\n"
-            "4. Be careful not to double-count objects that appear near the overlapping boundaries between adjacent views.\n"
-            "5. Check partial occlusions and small instances before deciding the final count.\n"
-            "6. Compare your visual re-count with the canonical count only after you have finished counting.\n"
-            "7. If the scene is too ambiguous to verify confidently, choose filter.\n"
-            "8. After deciding the final count, rewrite the QA naturally.\n\n"
+            "2. Re-count the queried category directly from the four views rather than trusting any prior answer.\n"
+            "3. Be careful not to double-count objects that appear near the overlapping boundaries between adjacent views.\n"
+            "4. Check partial occlusions and small instances before deciding the final count.\n"
+            "5. Only after you have finished the visual counting, decide whether the current answer should be kept or corrected.\n"
+            "6. If the scene is too ambiguous to verify confidently, choose filter.\n"
+            "7. After deciding the final count, rewrite the QA naturally.\n\n"
             "Important rules:\n"
-            "- Treat canonical_count as a value to verify, not as a trusted answer.\n"
+            "- Treat the current answer as something to verify, not something to trust.\n"
             "- verified_count must be the final integer count.\n"
             "- full_answer should contain a brief grounded counting rationale and then the final count answer.\n"
             "- The final numeric answer in full_answer must match verified_count.\n\n"
