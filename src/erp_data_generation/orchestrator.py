@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import os
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional
 
@@ -27,9 +28,14 @@ def iter_scene_inputs(input_path: str, *, metadata_filename: str = "metadata.jso
     if path.is_file():
         yield str(path)
         return
-    for item in sorted(path.rglob(metadata_filename)):
-        if item.is_file():
-            yield str(item)
+    for root, dirnames, filenames in os.walk(path):
+        dirnames.sort()
+        for filename in sorted(filenames):
+            if filename != metadata_filename:
+                continue
+            item = Path(root) / filename
+            if item.is_file():
+                yield str(item)
 
 
 def build_scene_bundle(

@@ -83,6 +83,7 @@ def main() -> int:
 
     output_root = Path(args.output_dir)
     output_root.mkdir(parents=True, exist_ok=True)
+    print(f"[start] preparing into {output_root}", flush=True)
     provider = _build_provider(args) if args.run_llm else None
     summary = _stream_directory_build(
         input_root=input_path,
