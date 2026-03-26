@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, Iterator, List, Optional
 
 from .builders import build_canonical_samples
 from .pipeline import build_scene_plan, load_scene_metadata
@@ -19,6 +19,17 @@ def discover_scene_inputs(input_path: str, *, metadata_filename: str = "metadata
     if path.is_file():
         return [str(path)]
     return sorted(str(item) for item in path.rglob(metadata_filename) if item.is_file())
+
+
+def iter_scene_inputs(input_path: str, *, metadata_filename: str = "metadata.json") -> Iterator[str]:
+    # 流式发现 metadata 输入，避免在超大目录下必须先全量扫描完再开始处理。
+    path = Path(input_path)
+    if path.is_file():
+        yield str(path)
+        return
+    for item in sorted(path.rglob(metadata_filename)):
+        if item.is_file():
+            yield str(item)
 
 
 def build_scene_bundle(

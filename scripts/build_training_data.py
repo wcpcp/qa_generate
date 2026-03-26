@@ -19,6 +19,7 @@ from erp_data_generation.orchestrator import (
     discover_scene_inputs,
     execute_corpus_bundle,
     execute_scene_bundle,
+    iter_scene_inputs,
 )
 from erp_data_generation.providers import OpenAIResponsesProvider
 
@@ -71,12 +72,13 @@ def main() -> int:
         print(json.dumps(bundle["summary"], ensure_ascii=False, indent=2))
         return 0
 
-    inputs = discover_scene_inputs(str(input_path), metadata_filename=args.metadata_filename)
+    output_root = Path(args.output_dir)
+    output_root.mkdir(parents=True, exist_ok=True)
     provider = _build_provider(args) if args.run_llm else None
     summary = _stream_directory_build(
         input_root=input_path,
-        input_paths=inputs,
-        output_root=Path(args.output_dir),
+        input_paths=iter_scene_inputs(str(input_path), metadata_filename=args.metadata_filename),
+        output_root=output_root,
         max_anchors=args.max_anchors,
         template_path=args.template_path,
         postprocess_policy_path=args.postprocess_policy_path,
@@ -101,7 +103,7 @@ def _build_provider(args: argparse.Namespace) -> OpenAIResponsesProvider:
 def _stream_directory_build(
     *,
     input_root: Path,
-    input_paths: list[str],
+    input_paths: Iterable[str],
     output_root: Path,
     max_anchors: int,
     template_path: str | None,
@@ -130,7 +132,7 @@ def _stream_directory_build(
     }
     manifest_records = []
 
-    for input_item in input_paths:
+    for index, input_item in enumerate(input_paths, start=1):
         bundle = build_scene_bundle(
             input_item,
             max_anchors=max_anchors,
@@ -143,6 +145,7 @@ def _stream_directory_build(
 
         scene_output_dir = _scene_output_dir(Path(input_item), input_root, output_root)
         export_scene_bundle_to_path(bundle, str(scene_output_dir))
+        print(f"[prepared {index}] {scene_output_dir}", flush=True)
 
         aggregate["scene_count"] += 1
         for key in [
