@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import json
+import os
 import sys
 from pathlib import Path
+from typing import Iterable
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +37,12 @@ def main() -> int:
     parser.add_argument("--input", required=True, help="Path to one scene metadata JSON file or a directory.")
     parser.add_argument("--output-dir", required=True, help="Output directory.")
     parser.add_argument("--max-anchors", type=int, default=6, help="Maximum anchor entities.")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=max(1, min(8, os.cpu_count() or 4)),
+        help="Number of scene-level workers for directory input.",
+    )
     parser.add_argument("--template-path", help="Optional question template JSON path.")
     parser.add_argument("--postprocess-policy-path", help="Optional postprocess policy JSON path.")
     parser.add_argument(
@@ -80,6 +89,7 @@ def main() -> int:
         input_paths=iter_scene_inputs(str(input_path), metadata_filename=args.metadata_filename),
         output_root=output_root,
         max_anchors=args.max_anchors,
+        workers=max(1, int(args.workers)),
         template_path=args.template_path,
         postprocess_policy_path=args.postprocess_policy_path,
         repackage_probability=args.repackage_probability,
@@ -106,6 +116,7 @@ def _stream_directory_build(
     input_paths: Iterable[str],
     output_root: Path,
     max_anchors: int,
+    workers: int,
     template_path: str | None,
     postprocess_policy_path: str | None,
     repackage_probability: float | None,
@@ -132,41 +143,63 @@ def _stream_directory_build(
     }
     manifest_records = []
 
-    for index, input_item in enumerate(input_paths, start=1):
-        bundle = build_scene_bundle(
-            input_item,
-            max_anchors=max_anchors,
-            template_path=template_path,
-            postprocess_policy_path=postprocess_policy_path,
-            repackage_probability=repackage_probability,
-        )
-        if provider is not None:
-            bundle = execute_scene_bundle(bundle, provider=provider)
+    if provider is not None and workers > 1:
+        print("[info] --run-llm mode uses a shared provider; falling back to workers=1 for safety.", flush=True)
+        workers = 1
 
-        scene_output_dir = _scene_output_dir(Path(input_item), input_root, output_root)
-        export_scene_bundle_to_path(bundle, str(scene_output_dir))
-        print(f"[prepared {index}] {scene_output_dir}", flush=True)
+    if workers <= 1:
+        for index, input_item in enumerate(input_paths, start=1):
+            result = _prepare_single_scene(
+                input_item=input_item,
+                input_root=input_root,
+                output_root=output_root,
+                max_anchors=max_anchors,
+                template_path=template_path,
+                postprocess_policy_path=postprocess_policy_path,
+                repackage_probability=repackage_probability,
+                provider=provider,
+            )
+            _merge_scene_result(aggregate, manifest_records, output_root, result)
+            print(f"[prepared {index}] {result['scene_output_dir']}", flush=True)
+    else:
+        max_pending = max(workers * 2, workers)
+        future_to_index: dict[concurrent.futures.Future, int] = {}
+        next_index = 1
+        completed = 0
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            for input_item in input_paths:
+                future = executor.submit(
+                    _prepare_single_scene,
+                    input_item=input_item,
+                    input_root=input_root,
+                    output_root=output_root,
+                    max_anchors=max_anchors,
+                    template_path=template_path,
+                    postprocess_policy_path=postprocess_policy_path,
+                    repackage_probability=repackage_probability,
+                    provider=provider,
+                )
+                future_to_index[future] = next_index
+                next_index += 1
 
-        aggregate["scene_count"] += 1
-        for key in [
-            "canonical_sample_count",
-            "postprocess_job_count",
-            "passthrough_count",
-            "filtered_postprocess_count",
-            "skipped_postprocess_count",
-        ]:
-            aggregate[key] += int(bundle["summary"].get(key, 0))
-        for key in ["final_sample_count", "processed_sample_count", "unresolved_job_count"]:
-            aggregate[key] += int(bundle["summary"].get(key, 0))
+                if len(future_to_index) >= max_pending:
+                    done, _ = concurrent.futures.wait(
+                        list(future_to_index.keys()),
+                        return_when=concurrent.futures.FIRST_COMPLETED,
+                    )
+                    for done_future in done:
+                        index = future_to_index.pop(done_future)
+                        result = done_future.result()
+                        completed += 1
+                        _merge_scene_result(aggregate, manifest_records, output_root, result)
+                        print(f"[prepared {index}] {result['scene_output_dir']}", flush=True)
 
-        manifest_records.append(
-            {
-                "input_path": str(input_item),
-                "relative_output_dir": str(scene_output_dir.relative_to(output_root)),
-                "scene_id": bundle["scene_id"],
-                "summary": bundle["summary"],
-            }
-        )
+            for done_future in concurrent.futures.as_completed(list(future_to_index.keys())):
+                index = future_to_index[done_future]
+                result = done_future.result()
+                completed += 1
+                _merge_scene_result(aggregate, manifest_records, output_root, result)
+                print(f"[prepared {index}] {result['scene_output_dir']}", flush=True)
 
     write_json(aggregate, str(output_root / "summary.json"))
     write_jsonl(manifest_records, str(output_root / "manifest.jsonl"))
@@ -176,6 +209,65 @@ def _stream_directory_build(
 def _scene_output_dir(input_metadata_path: Path, input_root: Path, output_root: Path) -> Path:
     rel_parent = input_metadata_path.relative_to(input_root).parent
     return output_root / rel_parent
+
+
+def _prepare_single_scene(
+    *,
+    input_item: str,
+    input_root: Path,
+    output_root: Path,
+    max_anchors: int,
+    template_path: str | None,
+    postprocess_policy_path: str | None,
+    repackage_probability: float | None,
+    provider: OpenAIResponsesProvider | None,
+) -> dict:
+    bundle = build_scene_bundle(
+        input_item,
+        max_anchors=max_anchors,
+        template_path=template_path,
+        postprocess_policy_path=postprocess_policy_path,
+        repackage_probability=repackage_probability,
+    )
+    if provider is not None:
+        bundle = execute_scene_bundle(bundle, provider=provider)
+
+    scene_output_dir = _scene_output_dir(Path(input_item), input_root, output_root)
+    export_scene_bundle_to_path(bundle, str(scene_output_dir))
+    return {
+        "input_path": str(input_item),
+        "scene_output_dir": str(scene_output_dir),
+        "scene_id": bundle["scene_id"],
+        "summary": bundle["summary"],
+    }
+
+
+def _merge_scene_result(
+    aggregate: dict,
+    manifest_records: list,
+    output_root: Path,
+    result: dict,
+) -> None:
+    aggregate["scene_count"] += 1
+    for key in [
+        "canonical_sample_count",
+        "postprocess_job_count",
+        "passthrough_count",
+        "filtered_postprocess_count",
+        "skipped_postprocess_count",
+    ]:
+        aggregate[key] += int(result["summary"].get(key, 0))
+    for key in ["final_sample_count", "processed_sample_count", "unresolved_job_count"]:
+        aggregate[key] += int(result["summary"].get(key, 0))
+
+    manifest_records.append(
+        {
+            "input_path": result["input_path"],
+            "relative_output_dir": str(Path(result["scene_output_dir"]).relative_to(output_root)),
+            "scene_id": result["scene_id"],
+            "summary": result["summary"],
+        }
+    )
 
 
 if __name__ == "__main__":
