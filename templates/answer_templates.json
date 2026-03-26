@@ -63,14 +63,22 @@
     "{relation}",
     "It is {relation}.",
     "The relative direction is {relation}.",
-    "{relation} relative to the reference object."
+    "{relation} relative to the reference object.",
+    "On the panorama ring, it falls {relation}.",
+    "Relative to the reference on the 360 ring, it is {relation}.",
+    "From the observer-centered panorama ring, the best label is {relation}.",
+    "Around the horizontal panorama ring, it lies {relation}."
   ],
   "view_transform": [
     "{direction}",
     "In the reoriented view, it is {direction}.",
     "After the view change, it appears {direction}.",
     "Under the transformed viewing direction, it falls {direction}.",
-    "In that new reference frame, the correct direction is {direction}."
+    "In that new reference frame, the correct direction is {direction}.",
+    "From the updated viewpoint, it would appear {direction}.",
+    "After the observer turns, it lands {direction} in the new view.",
+    "Relative to the new facing direction, it is {direction}.",
+    "Once the view is reoriented, it should appear {direction}."
   ],
   "distance_estimation": [
     "{depth_m}",
@@ -95,13 +103,20 @@
     "{relation}",
     "It is {relation}.",
     "The 3D relation is {relation}.",
-    "It is best described as {relation}."
+    "It is best described as {relation}.",
+    "From the current camera viewpoint, it is {relation}.",
+    "In the current camera-centered 3D frame, it is {relation}.",
+    "Relative to the other object in camera space, it is {relation}.",
+    "From this viewpoint, the best 3D description is {relation}."
   ],
   "relative_3d_position.choice": [
     "{relation}",
     "The correct option is {relation}.",
     "Among the listed choices, {relation} is correct.",
-    "The best matching 3D relation is {relation}."
+    "The best matching 3D relation is {relation}.",
+    "From the current camera viewpoint, the correct choice is {relation}.",
+    "In the camera-centered frame, the best option is {relation}.",
+    "Relative to the other object in camera space, {relation} is the correct choice."
   ],
   "seam_continuity.true": [
     "yes",

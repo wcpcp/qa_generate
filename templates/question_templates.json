@@ -132,22 +132,22 @@
     "Which listed object is closest to the camera in this ERP scene: {candidate_list}?"
   ],
   "relative_3d_position.open": [
-    "What is the camera-centric 3D relation of {entity_a} relative to {entity_b}?",
-    "Describe the 3D offset of {entity_a} compared with {entity_b}.",
-    "How is {entity_a} positioned in 3D space relative to {entity_b}?",
-    "Compared with {entity_b}, where is {entity_a} in 3D space?",
-    "Which 3D relation best describes {entity_a} relative to {entity_b}?",
-    "Which description best matches the 3D position of {entity_a} relative to {entity_b}?",
-    "In 3D space, where would you place {entity_a} compared with {entity_b}?",
-    "Is {entity_a} left of, right of, above, below, in front of, or behind {entity_b}?",
-    "Which standard 3D spatial relation best matches {entity_a} relative to {entity_b}?"
+    "From the current camera viewpoint, what is the 3D relation of {entity_a} relative to {entity_b}?",
+    "Describe the camera-centered 3D offset of {entity_a} compared with {entity_b}.",
+    "How is {entity_a} positioned in 3D space relative to {entity_b} from the current camera view?",
+    "Compared with {entity_b}, where is {entity_a} in the current camera-centered 3D frame?",
+    "Which 3D relation best describes {entity_a} relative to {entity_b} from this viewpoint?",
+    "Which description best matches the camera-centered 3D position of {entity_a} relative to {entity_b}?",
+    "In the current camera-centered scene geometry, where would you place {entity_a} compared with {entity_b}?",
+    "From the camera viewpoint, is {entity_a} left of, right of, above, below, in front of, or behind {entity_b}?",
+    "Which standard camera-centered 3D relation best matches {entity_a} relative to {entity_b}?"
   ],
   "relative_3d_position.choice": [
-    "Which option best describes the 3D position of {entity_a} relative to {entity_b}: {choice_list}?",
-    "Choose the best camera-centric 3D relation for {entity_a} relative to {entity_b}: {choice_list}.",
-    "Among the following 3D relations, which one matches {entity_a} compared with {entity_b}: {choice_list}?",
-    "Select the most accurate 3D relation of {entity_a} with respect to {entity_b}: {choice_list}.",
-    "Which listed relation best fits {entity_a} relative to {entity_b} in 3D space: {choice_list}?"
+    "Which option best describes the camera-centered 3D position of {entity_a} relative to {entity_b}: {choice_list}?",
+    "Choose the best 3D relation for {entity_a} relative to {entity_b} from the current camera view: {choice_list}.",
+    "Among the following 3D relations, which one matches {entity_a} compared with {entity_b} in camera space: {choice_list}?",
+    "Select the most accurate camera-centered 3D relation of {entity_a} with respect to {entity_b}: {choice_list}.",
+    "Which listed relation best fits {entity_a} relative to {entity_b} in the current camera-centered scene: {choice_list}?"
   ],
   "seam_continuity.same_instance_yesno": [
     "Do the left-edge and right-edge fragments of the {target_label} refer to the same object?",
@@ -170,16 +170,16 @@
     "If the left-right panorama seam no longer cut through the {target_label}, should it appear as a single continuous instance?"
   ],
   "polar_distortion_awareness.shape_direct": [
-    "What is the true shape of the {target_label} near BFOV {bfov}, ignoring ERP distortion?",
-    "The object at BFOV {bfov} may look stretched in ERP. What is its actual shape?",
-    "For the high-latitude {target_label} near BFOV {bfov}, what is its real shape rather than its distorted appearance?"
+    "What shape best describes the {target_label} near BFOV {bfov}?",
+    "How would you describe the shape of the {target_label} near BFOV {bfov}?",
+    "For the high-latitude {target_label} near BFOV {bfov}, what shape does it have?"
   ],
   "polar_distortion_awareness.shape_distortion_aware": [
-    "Near the ERP pole, the {target_label} at BFOV {bfov} may appear warped. What is its true shape?",
-    "Although the {target_label} near BFOV {bfov} looks distorted in ERP, what shape is it actually?",
-    "For the high-latitude {target_label} near BFOV {bfov}, recover its real shape rather than the pole-distorted appearance.",
+    "Near the ERP pole, the {target_label} at BFOV {bfov} may look warped. What is its true shape?",
+    "Although ERP projection may distort the {target_label} near BFOV {bfov}, what shape is it actually?",
+    "For the high-latitude {target_label} near BFOV {bfov}, recover its real shape rather than the ERP-distorted appearance.",
     "The ERP projection may stretch the {target_label} at BFOV {bfov}. What is the object's actual shape?",
-    "Ignoring the polar distortion affecting the {target_label} near BFOV {bfov}, what is its true shape?"
+    "Even if the {target_label} near BFOV {bfov} appears distorted in ERP, what is its true shape?"
   ],
   "polar_distortion_awareness.size": [],
   "polar_distortion_awareness.volume": []

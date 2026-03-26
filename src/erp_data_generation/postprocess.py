@@ -301,6 +301,8 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
             {
                 "entity_a": _entity_3d_stub(entity_a, metadata.get("entity_a_ref")),
                 "entity_b": _entity_3d_stub(entity_b, metadata.get("entity_b_ref")),
+                "depth_a_m": metadata.get("depth_a_m"),
+                "depth_b_m": metadata.get("depth_b_m"),
                 "delta_xyz_m": delta_xyz,
                 "canonical_relation": sample["canonical_answer"],
                 "geometry_source": sample.get("geometry_source", "explicit_xyz"),
@@ -537,6 +539,7 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
                 "Use the per-object yaw or BFOV cues first, and then use delta_yaw_deg only as a support fact rather than the whole task definition.",
                 "Stay within the allowed relation space right / back-right / opposite / back-left / left.",
                 "Keep the relative direction truth unchanged.",
+                "You may phrase the answer in varied natural ways, but it should still clearly describe the same panorama-ring sector.",
                 "full_answer may include one short explanatory clause about the angular offset around the panorama ring before or after the final relation.",
             ],
             "full_answer must preserve the exact relative direction label.",
@@ -554,6 +557,7 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
                     "Interpret the answer in the new observer-centered view, not as a true 3D relation between objects.",
                     "Stay within the allowed relation space right / back-right / behind / back-left / left.",
                     "Use delta_yaw_deg only as a supporting geometric fact.",
+                    "You may vary the wording of the answer, but it must still clearly point to the same reoriented-view sector.",
                     "Rewrite the QA clearly so it is obvious that the observer first turns to face the reference target.",
                 ],
                 "full_answer must preserve the same reoriented-view direction label exactly.",
@@ -568,6 +572,7 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
                 "Interpret the answer in the reoriented observer view, not as a world-coordinate relation.",
                 "Stay within the allowed relation space right / back-right / behind / back-left / left.",
                 "You may briefly mention the original absolute sector and the shifted view, but preserve the canonical direction truth exactly.",
+                "You may vary the wording of the answer, but it must still clearly name the same reoriented-view sector.",
                 "Rewrite the QA clearly so there is no left or right turn ambiguity.",
             ],
             "The question must explicitly mention turning left or turning right.",
@@ -624,12 +629,15 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
             "relative 3D position",
             [
                 "Read the two target entities, their referring phrases, and the already-computed geometric support facts first.",
+                "Interpret the task in the current camera-centered 3D frame of the ERP capture.",
                 "Use the already-computed geometry rather than recomputing from scratch.",
                 "Read the rule-derived 3D relation carefully.",
                 "Keep the 3D relation truth unchanged.",
                 "If multiple axis relations are present, preserve all of them and do not drop any axis.",
                 "Do not expose raw xyz coordinates in the final answer unless the question explicitly asks for them.",
-                "If you include a short analysis, express it as natural relative-axis reasoning that stays consistent with the canonical relation.",
+                "If front or behind appears in the canonical relation, interpret it as the camera-forward viewing axis, not as an object-facing semantic relation.",
+                "You may optionally mention a nearer or farther depth cue only when it is consistent with depth_a_m and depth_b_m.",
+                "If you include a short analysis, express it as natural camera-viewpoint reasoning that stays consistent with the canonical relation.",
                 "full_answer may include a short, correct geometric analysis before giving the final relation.",
             ],
             "full_answer must preserve the same 3D relation label, including every active axis relation.",
@@ -715,7 +723,7 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
             "Think step by step internally:\n"
             "1. Read the target BFOV, latitude_band, and true_shape first.\n"
             "2. Preserve that the answer is the object's true shape.\n"
-            "3. Rewrite the question naturally without over-explaining distortion if the prompt is the direct version.\n"
+            "3. Rewrite the question naturally without over-explaining ERP distortion in the direct version.\n"
             "4. full_answer should end with the true shape and may include at most one short supporting clause.\n\n"
             "Return JSON with keys question and full_answer.\n"
         )
