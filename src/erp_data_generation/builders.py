@@ -905,7 +905,7 @@ def _relative_3d_relation(entity_a: Entity, entity_b: Entity) -> str:
     if _axis_clear_y(entity_a, entity_b, dy):
         relations.append("above" if dy > 0 else "below")
     if abs(dz) >= 0.6:
-        relations.append("behind" if dz > 0 else "in front of")
+        relations.append("in front of" if dz > 0 else "behind")
     if not relations:
         return ""
     if len(relations) == 1:
@@ -928,7 +928,7 @@ def _build_relative_3d_choices(entity_a: Entity, entity_b: Entity, answer: str) 
     axis_pairs = [
         ("left of", "right of") if dx < 0 else ("right of", "left of"),
         ("below", "above") if dy < 0 else ("above", "below"),
-        ("in front of", "behind") if dz < 0 else ("behind", "in front of"),
+        ("in front of", "behind") if dz > 0 else ("behind", "in front of"),
     ]
     active = []
     if _axis_clear_x(entity_a, entity_b, dx):
