@@ -24,6 +24,7 @@ from erp_data_generation.orchestrator import (
     execute_scene_bundle,
     iter_scene_inputs,
 )
+from erp_data_generation.pipeline import SceneMetadataLoadError
 from erp_data_generation.providers import OpenAIResponsesProvider
 
 
@@ -67,13 +68,43 @@ def main() -> int:
 
     input_path = Path(args.input)
     if input_path.is_file():
-        bundle = build_scene_bundle(
-            str(input_path),
-            max_anchors=args.max_anchors,
-            template_path=args.template_path,
-            postprocess_policy_path=args.postprocess_policy_path,
-            repackage_probability=args.repackage_probability,
-        )
+        try:
+            bundle = build_scene_bundle(
+                str(input_path),
+                max_anchors=args.max_anchors,
+                template_path=args.template_path,
+                postprocess_policy_path=args.postprocess_policy_path,
+                repackage_probability=args.repackage_probability,
+            )
+        except SceneMetadataLoadError as exc:
+            output_root = Path(args.output_dir)
+            output_root.mkdir(parents=True, exist_ok=True)
+            summary = {
+                "scene_count": 0,
+                "canonical_sample_count": 0,
+                "postprocess_job_count": 0,
+                "passthrough_count": 0,
+                "filtered_postprocess_count": 0,
+                "skipped_postprocess_count": 0,
+                "final_sample_count": 0,
+                "processed_sample_count": 0,
+                "unresolved_job_count": 0,
+                "skipped_input_count": 1,
+                "failed_scene_count": 0,
+            }
+            manifest = [
+                {
+                    "input_path": str(input_path),
+                    "status": "skipped",
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                }
+            ]
+            write_json(summary, str(output_root / "summary.json"))
+            write_jsonl(manifest, str(output_root / "manifest.jsonl"))
+            print(f"[skip] {input_path}: {exc}", flush=True)
+            print(json.dumps(summary, ensure_ascii=False, indent=2))
+            return 0
         if args.run_llm:
             provider = _build_provider(args)
             bundle = execute_scene_bundle(bundle, provider=provider)
@@ -141,6 +172,8 @@ def _stream_directory_build(
         "final_sample_count": 0,
         "processed_sample_count": 0,
         "unresolved_job_count": 0,
+        "skipped_input_count": 0,
+        "failed_scene_count": 0,
     }
     manifest_records = []
 
@@ -161,7 +194,7 @@ def _stream_directory_build(
                 provider=provider,
             )
             _merge_scene_result(aggregate, manifest_records, output_root, result)
-            print(f"[prepared {index}] {result['scene_output_dir']}", flush=True)
+            _print_scene_result(index, result)
     else:
         max_pending = max(workers * 2, workers)
         future_to_index: dict[concurrent.futures.Future, int] = {}
@@ -193,14 +226,14 @@ def _stream_directory_build(
                         result = done_future.result()
                         completed += 1
                         _merge_scene_result(aggregate, manifest_records, output_root, result)
-                        print(f"[prepared {index}] {result['scene_output_dir']}", flush=True)
+                        _print_scene_result(index, result)
 
             for done_future in concurrent.futures.as_completed(list(future_to_index.keys())):
                 index = future_to_index[done_future]
                 result = done_future.result()
                 completed += 1
                 _merge_scene_result(aggregate, manifest_records, output_root, result)
-                print(f"[prepared {index}] {result['scene_output_dir']}", flush=True)
+                _print_scene_result(index, result)
 
     write_json(aggregate, str(output_root / "summary.json"))
     write_jsonl(manifest_records, str(output_root / "manifest.jsonl"))
@@ -223,24 +256,40 @@ def _prepare_single_scene(
     repackage_probability: float | None,
     provider: OpenAIResponsesProvider | None,
 ) -> dict:
-    bundle = build_scene_bundle(
-        input_item,
-        max_anchors=max_anchors,
-        template_path=template_path,
-        postprocess_policy_path=postprocess_policy_path,
-        repackage_probability=repackage_probability,
-    )
-    if provider is not None:
-        bundle = execute_scene_bundle(bundle, provider=provider)
+    try:
+        bundle = build_scene_bundle(
+            input_item,
+            max_anchors=max_anchors,
+            template_path=template_path,
+            postprocess_policy_path=postprocess_policy_path,
+            repackage_probability=repackage_probability,
+        )
+        if provider is not None:
+            bundle = execute_scene_bundle(bundle, provider=provider)
 
-    scene_output_dir = _scene_output_dir(Path(input_item), input_root, output_root)
-    export_scene_bundle_to_path(bundle, str(scene_output_dir))
-    return {
-        "input_path": str(input_item),
-        "scene_output_dir": str(scene_output_dir),
-        "scene_id": bundle["scene_id"],
-        "summary": bundle["summary"],
-    }
+        scene_output_dir = _scene_output_dir(Path(input_item), input_root, output_root)
+        export_scene_bundle_to_path(bundle, str(scene_output_dir))
+        return {
+            "status": "prepared",
+            "input_path": str(input_item),
+            "scene_output_dir": str(scene_output_dir),
+            "scene_id": bundle["scene_id"],
+            "summary": bundle["summary"],
+        }
+    except SceneMetadataLoadError as exc:
+        return {
+            "status": "skipped",
+            "input_path": str(input_item),
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "input_path": str(input_item),
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        }
 
 
 def _merge_scene_result(
@@ -249,6 +298,30 @@ def _merge_scene_result(
     output_root: Path,
     result: dict,
 ) -> None:
+    status = result.get("status", "prepared")
+    if status == "skipped":
+        aggregate["skipped_input_count"] += 1
+        manifest_records.append(
+            {
+                "input_path": result["input_path"],
+                "status": "skipped",
+                "error_type": result.get("error_type", "SceneMetadataLoadError"),
+                "error": result.get("error", ""),
+            }
+        )
+        return
+    if status == "failed":
+        aggregate["failed_scene_count"] += 1
+        manifest_records.append(
+            {
+                "input_path": result["input_path"],
+                "status": "failed",
+                "error_type": result.get("error_type", "Exception"),
+                "error": result.get("error", ""),
+            }
+        )
+        return
+
     aggregate["scene_count"] += 1
     for key in [
         "canonical_sample_count",
@@ -264,10 +337,25 @@ def _merge_scene_result(
     manifest_records.append(
         {
             "input_path": result["input_path"],
+            "status": "prepared",
             "relative_output_dir": str(Path(result["scene_output_dir"]).relative_to(output_root)),
             "scene_id": result["scene_id"],
             "summary": result["summary"],
         }
+    )
+
+
+def _print_scene_result(index: int, result: dict) -> None:
+    status = result.get("status", "prepared")
+    if status == "prepared":
+        print(f"[prepared {index}] {result['scene_output_dir']}", flush=True)
+        return
+    if status == "skipped":
+        print(f"[skip {index}] {result['input_path']}: {result.get('error', '')}", flush=True)
+        return
+    print(
+        f"[error {index}] {result['input_path']}: {result.get('error_type', 'Exception')}: {result.get('error', '')}",
+        flush=True,
     )
 
 

@@ -118,10 +118,45 @@ CAMERA_ROTATION_OPTIONS = [
 ]
 
 
+class SceneMetadataLoadError(ValueError):
+    # 用于标记“当前输入 metadata 无法作为有效 scene 读取”的可跳过错误。
+    # 例如空文件、坏 JSON、顶层结构错误等。
+    pass
+
+
 def load_scene_metadata(input_path: str) -> SceneMetadata:
     # 从磁盘读取一个 scene metadata JSON，并归一化为内部结构。
-    data = json.loads(Path(input_path).read_text(encoding="utf-8"))
-    return SceneMetadata.from_dict(data)
+    path = Path(input_path)
+    try:
+        raw_text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise SceneMetadataLoadError(f"failed to read metadata file: {exc}") from exc
+
+    if not raw_text.strip():
+        raise SceneMetadataLoadError("metadata file is empty")
+
+    try:
+        data = json.loads(raw_text)
+    except json.JSONDecodeError as exc:
+        raise SceneMetadataLoadError(f"invalid JSON: {exc.msg}") from exc
+
+    if not isinstance(data, dict):
+        raise SceneMetadataLoadError("top-level JSON must be an object")
+
+    entities = data.get("entities")
+    if entities is None:
+        raise SceneMetadataLoadError("missing required field: entities")
+    if not isinstance(entities, list):
+        raise SceneMetadataLoadError("field 'entities' must be a list")
+
+    try:
+        scene = SceneMetadata.from_dict(data)
+    except Exception as exc:
+        raise SceneMetadataLoadError(f"failed to normalize scene metadata: {exc}") from exc
+
+    if not isinstance(scene, SceneMetadata):
+        raise SceneMetadataLoadError("normalized scene metadata has unexpected type")
+    return scene
 
 
 def _field_present(value: Any) -> bool:
