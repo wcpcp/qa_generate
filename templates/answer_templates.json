@@ -127,5 +127,10 @@
     "{shape}",
     "Its true shape is {shape}.",
     "The object should be recognized as {shape} in shape."
+  ],
+  "polar_distortion_awareness.candidate": [
+    "{candidate}",
+    "The best-matching candidate is {candidate}.",
+    "The correct match is {candidate}."
   ]
 }

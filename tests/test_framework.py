@@ -144,6 +144,30 @@ class FrameworkTestCase(unittest.TestCase):
             metadata = sample.get("metadata", {})
             self.assertEqual(metadata.get("seam_mode"), sample.get("generation_mode"))
 
+    def test_polar_distortion_uses_locator_grounded_modes(self) -> None:
+        scene = self.scene
+        samples = self.samples
+        if REAL_SCENE.exists():
+            scene = load_scene_metadata(str(REAL_SCENE))
+            plan = build_scene_plan(scene)
+            samples = build_canonical_samples(scene, plan)
+        polar_samples = [sample for sample in samples if sample["task_family"] == "polar_distortion_awareness"]
+        if not polar_samples:
+            self.skipTest("No polar distortion samples available in the current test metadata.")
+        allowed_modes = {
+            "shape_recovery_direct",
+            "shape_recovery_distortion_aware",
+            "shape_matching",
+            "cross_latitude_matching",
+        }
+        for sample in polar_samples:
+            self.assertIn(sample.get("generation_mode"), allowed_modes)
+            metadata = sample.get("metadata", {})
+            self.assertEqual(metadata.get("polar_mode"), sample.get("generation_mode"))
+            self.assertTrue(metadata.get("target_locator"))
+            if sample.get("generation_mode") in {"shape_matching", "cross_latitude_matching"}:
+                self.assertGreaterEqual(len(metadata.get("choice_candidates", [])), 4)
+
 
 if __name__ == "__main__":
     unittest.main()

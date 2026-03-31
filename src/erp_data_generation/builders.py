@@ -227,7 +227,7 @@ def _realize_task(
 
     if task_family == "polar_distortion_awareness":
         entity = entities[0]
-        return _realize_polar_distortion_awareness(scene, entity, generation_mode, templates, answer_templates, template_seed)
+        return _realize_polar_distortion_awareness(scene, task, entity, generation_mode, templates, answer_templates, template_seed)
 
     if task_family == "cognitive_map_understanding":
         return _build_cognitive_map_understanding_stub(task)
@@ -549,6 +549,7 @@ def _realize_relative_3d_position(
 
 def _realize_polar_distortion_awareness(
     scene: SceneMetadata,
+    task: Dict[str, Any],
     entity: Entity,
     generation_mode: str,
     templates: Dict[str, List[str]],
@@ -558,18 +559,62 @@ def _realize_polar_distortion_awareness(
     mode = generation_mode or "shape_recovery_direct"
     if mode == "shape_recovery_distortion_aware":
         template_key = "polar_distortion_awareness.shape_distortion_aware"
+    elif mode == "shape_matching":
+        template_key = "polar_distortion_awareness.shape_matching"
+    elif mode == "cross_latitude_matching":
+        template_key = "polar_distortion_awareness.cross_latitude_matching"
     else:
         template_key = "polar_distortion_awareness.shape_direct"
-    answer = _display_value((entity.semantic.attributes or {}).get("shape", "unknown"))
+    target_label = _display_label(entity.label)
+    locator_mode = str(task.get("polar_target_locator_mode", "bfov"))
+    target_locator = _polar_entity_locator(scene, entity, locator_mode)
     template, index = _pick_template(templates, template_key, template_seed)
-    question = template.format(
-        target_label=_display_label(entity.label),
-        bbox_norm_1000=_bbox_text(_normalized_bbox_1000(scene, entity)),
-        pitch_deg=_fmt_float(_pitch_deg_180(entity)),
-        yaw_deg=_fmt_float(_yaw_deg_360(entity)),
-        bfov=_bfov_text(_entity_bfov(scene, entity)),
-    )
-    metadata = {**_entity_loc_metadata(scene, entity), "polar_mode": mode}
+    metadata = {
+        **_entity_loc_metadata(scene, entity),
+        "polar_mode": mode,
+        "target_locator_mode": locator_mode,
+        "target_locator": target_locator,
+    }
+
+    if mode in {"shape_matching", "cross_latitude_matching"}:
+        entity_by_id = {item.entity_id: item for item in scene.entities}
+        choice_entities = [
+            entity_by_id[entity_id]
+            for entity_id in task.get("polar_choice_entity_ids", []) or []
+            if entity_id in entity_by_id
+        ]
+        correct_entity = entity_by_id.get(str(task.get("polar_correct_entity_id", "")))
+        if correct_entity is None or len(choice_entities) < 4:
+            return "", None, "", {}, None, "", 0
+        candidate_descriptions = [
+            _polar_candidate_descriptor(scene, item, f"{template_seed}:{item.entity_id}") for item in choice_entities
+        ]
+        descriptor_by_id = {
+            item.entity_id: desc for item, desc in zip(choice_entities, candidate_descriptions)
+        }
+        answer = descriptor_by_id[correct_entity.entity_id]
+        metadata.update(
+            {
+                "choice_candidates": candidate_descriptions,
+                "candidate_entity_ids": [item.entity_id for item in choice_entities],
+                "correct_candidate": answer,
+            }
+        )
+        question = template.format(
+            target_label=target_label,
+            target_locator=target_locator,
+            choice_list=", ".join(candidate_descriptions),
+        )
+        answer_text = _pick_answer_template(
+            answer_templates,
+            "polar_distortion_awareness.candidate",
+            template_seed,
+            candidate=answer,
+        )
+        return question, answer, answer_text, metadata, None, template_key, index
+
+    answer = _display_value((entity.semantic.attributes or {}).get("shape", "unknown"))
+    question = template.format(target_label=target_label, target_locator=target_locator)
     answer_text = _pick_answer_template(answer_templates, "polar_distortion_awareness.shape", template_seed, shape=answer)
     return question, answer, answer_text, metadata, None, template_key, index
 
@@ -794,6 +839,18 @@ def _entity_bfov(scene: SceneMetadata, entity: Entity) -> List[float]:
 
 def _bfov_text(bfov: Sequence[float]) -> str:
     return f"[{bfov[0]}, {bfov[1]}, {bfov[2]}, {bfov[3]}]"
+
+
+def _polar_entity_locator(scene: SceneMetadata, entity: Entity, locator_mode: str) -> str:
+    if locator_mode == "bbox_norm_1000":
+        return f"box {_bbox_text(_normalized_bbox_1000(scene, entity))}"
+    return f"BFOV {_bfov_text(_entity_bfov(scene, entity))}"
+
+
+def _polar_candidate_descriptor(scene: SceneMetadata, entity: Entity, seed: str) -> str:
+    digest = hashlib.md5(f"{seed}:polar_candidate_locator".encode("utf-8")).hexdigest()
+    locator_mode = "bbox_norm_1000" if int(digest[:8], 16) % 2 == 0 else "bfov"
+    return f"the {_display_label(entity.label)} at {_polar_entity_locator(scene, entity, locator_mode)}"
 
 
 def _resolve_seam_choice_entities(task: Dict[str, Any], entity_by_id: Dict[str, Entity]) -> List[Entity]:

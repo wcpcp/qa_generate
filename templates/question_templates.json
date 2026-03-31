@@ -151,35 +151,50 @@
   ],
   "seam_continuity.nearest_neighbor": [
     "Which listed object is actually nearest to {target_ref} near the {target_side} image edge: {choice_list}?",
-    "For the {target_ref} close to the {target_side} image boundary, which candidate is truly the nearest neighbor: {choice_list}?"
+    "For the {target_ref} close to the {target_side} image boundary, which candidate is truly the nearest neighbor: {choice_list}?",
+    "Identify the seam-aware nearest neighbor of {target_ref} near the {target_side} boundary from: {choice_list}."
   ],
   "seam_continuity.relative_direction": [
     "What is the relation of {neighbor_ref} relative to {target_ref} across the left-right image boundary: {choice_list}?",
-    "Across the image seam, how should {neighbor_ref} be described relative to {target_ref}: {choice_list}?"
+    "Across the image seam, how should {neighbor_ref} be described relative to {target_ref}: {choice_list}?",
+    "Describe the seam-aware direction of {neighbor_ref} relative to {target_ref}. Valid answers: {choice_list}."
   ],
   "seam_continuity.dedup_count": [
     "The left-edge and right-edge visible parts of {target_ref} should be counted as: {choice_list}.",
-    "When counting {target_ref} across the image boundary, these two visible parts should be treated as: {choice_list}."
+    "When counting {target_ref} across the image boundary, these two visible parts should be treated as: {choice_list}.",
+    "Should the two boundary appearances of {target_ref} be counted as one object or more? Choose from: {choice_list}."
   ],
   "seam_continuity.structure_continuity": [
     "For the {target_ref} touching both image sides, which explanation is more reasonable: {choice_list}?",
-    "For the boundary-touching {target_ref}, which structural interpretation is most reasonable: {choice_list}?"
+    "For the boundary-touching {target_ref}, which structural interpretation is most reasonable: {choice_list}?",
+    "Describe the most reasonable 360-structure interpretation of the boundary-touching {target_ref}. Valid answers: {choice_list}."
   ],
   "seam_continuity.same_entity_judgement": [
     "The left-edge and right-edge appearances of {target_ref} are best described as: {choice_list}.",
-    "How should the left-side and right-side appearances of {target_ref} be interpreted: {choice_list}?"
+    "How should the left-side and right-side appearances of {target_ref} be interpreted: {choice_list}?",
+    "Explain how the two boundary appearances of {target_ref} should be interpreted. Choose from: {choice_list}."
   ],
   "polar_distortion_awareness.shape_direct": [
-    "What shape best describes the {target_label} near BFOV {bfov}?",
-    "How would you describe the shape of the {target_label} near BFOV {bfov}?",
-    "For the high-latitude {target_label} near BFOV {bfov}, what shape does it have?"
+    "What is the true shape of the {target_label} at {target_locator}?",
+    "Ignoring ERP stretching, what shape should the {target_label} at {target_locator} be recognized as?",
+    "Identify the real shape of the {target_label} located at {target_locator}."
   ],
   "polar_distortion_awareness.shape_distortion_aware": [
-    "Near the ERP pole, the {target_label} at BFOV {bfov} may look warped. What is its true shape?",
-    "Although ERP projection may distort the {target_label} near BFOV {bfov}, what shape is it actually?",
-    "For the high-latitude {target_label} near BFOV {bfov}, recover its real shape rather than the ERP-distorted appearance.",
-    "The ERP projection may stretch the {target_label} at BFOV {bfov}. What is the object's actual shape?",
-    "Even if the {target_label} near BFOV {bfov} appears distorted in ERP, what is its true shape?"
+    "Near the ERP pole, the {target_label} at {target_locator} may look warped. What is its true shape?",
+    "Although ERP projection may distort the {target_label} at {target_locator}, what shape is it actually?",
+    "For the high-latitude {target_label} at {target_locator}, recover its real shape rather than the ERP-distorted appearance.",
+    "The ERP projection may stretch the {target_label} at {target_locator}. What is the object's actual shape?",
+    "Even if the {target_label} at {target_locator} appears distorted in ERP, what is its true shape?"
+  ],
+  "polar_distortion_awareness.shape_matching": [
+    "Which listed candidate best matches the real geometry of the high-latitude {target_label} at {target_locator}: {choice_list}?",
+    "Name the candidate whose geometry best matches the high-latitude {target_label} at {target_locator}. Candidates: {choice_list}.",
+    "From the following candidates, which one best matches the true shape of the {target_label} at {target_locator}: {choice_list}?"
+  ],
+  "polar_distortion_awareness.cross_latitude_matching": [
+    "Which listed object best matches the real geometry of the high-latitude {target_label} at {target_locator}: {choice_list}?",
+    "Ignoring ERP distortion, which candidate most plausibly shares the true geometry of the high-latitude {target_label} at {target_locator}: {choice_list}?",
+    "Choose the low-latitude object whose geometry best matches the distorted high-latitude {target_label} at {target_locator}: {choice_list}."
   ],
   "polar_distortion_awareness.size": [],
   "polar_distortion_awareness.volume": []

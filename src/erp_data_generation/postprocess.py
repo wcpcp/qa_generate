@@ -329,11 +329,17 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
         facts.update(
             {
                 "target_label": entity.label,
-                "target_bfov": metadata.get("bfov"),
+                "target_locator": metadata.get("target_locator") or metadata.get("bfov"),
+                "target_locator_mode": metadata.get("target_locator_mode"),
                 "latitude_band": "strong_polar" if abs_lat >= 60.0 else "high_latitude",
-                "true_shape": sample["canonical_answer"],
+                "polar_mode": sample.get("generation_mode"),
             }
         )
+        if sample.get("generation_mode") in {"shape_matching", "cross_latitude_matching"}:
+            facts["choice_candidates"] = metadata.get("choice_candidates")
+            facts["canonical_candidate"] = sample["canonical_answer"]
+        else:
+            facts["true_shape"] = sample["canonical_answer"]
     else:
         facts["metadata"] = metadata
     return facts
@@ -715,7 +721,34 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
         )
 
     if mode == "polar_distortion_awareness_repackage":
-        if sample.get("generation_mode") == "shape_recovery_distortion_aware":
+        polar_mode = sample.get("generation_mode")
+        if polar_mode == "shape_matching":
+            return _deterministic_prompt(
+                facts_json,
+                "ERP high-latitude shape matching",
+                [
+                    "Read the target_label, target_locator, choice_candidates, and canonical_candidate carefully.",
+                    "Interpret the task as matching the distorted high-latitude target to the candidate whose true geometry best matches it.",
+                    "Preserve exactly which listed candidate is the correct match.",
+                    "Rewrite the question naturally, but keep it grounded in coarse label plus localization rather than a detailed referring phrase.",
+                ],
+                "full_answer must preserve the same candidate exactly.",
+                allow_reasoning=True,
+            )
+        if polar_mode == "cross_latitude_matching":
+            return _deterministic_prompt(
+                facts_json,
+                "ERP cross-latitude geometry matching",
+                [
+                    "Read the target_label, target_locator, choice_candidates, and canonical_candidate carefully.",
+                    "Interpret the task as matching a high-latitude distorted target to the low-latitude candidate with the same real geometry.",
+                    "Preserve exactly which listed candidate is the correct match.",
+                    "Rewrite the question naturally, but keep the target identified only by coarse label plus localization.",
+                ],
+                "full_answer must preserve the same candidate exactly.",
+                allow_reasoning=True,
+            )
+        if polar_mode == "shape_recovery_distortion_aware":
             return (
                 "You are rewriting an ERP polar distortion awareness QA sample.\n\n"
                 f"Structured facts:\n{facts_json}\n\n"
@@ -724,7 +757,7 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
                 "- Near the poles, ERP projection can stretch or warp object appearance in 2D.\n"
                 "- The goal is to recover the object's true shape rather than the distorted visual impression.\n\n"
                 "Think step by step internally:\n"
-                "1. Read the target BFOV, latitude_band, and true_shape first.\n"
+                "1. Read the target locator, latitude_band, and true_shape first.\n"
                 "2. Preserve that this is a distortion-aware shape recovery question.\n"
                 "3. Rewrite the question so the pole-distortion challenge is explicit, not hidden.\n"
                 "4. full_answer may include one short phrase that the ERP appearance can be distorted, followed by the true shape.\n\n"
@@ -737,7 +770,7 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
             "- This is an ERP panorama.\n"
             "- The target is at high latitude, so shape understanding should remain grounded in the true object shape.\n\n"
             "Think step by step internally:\n"
-            "1. Read the target BFOV, latitude_band, and true_shape first.\n"
+            "1. Read the target locator, latitude_band, and true_shape first.\n"
             "2. Preserve that the answer is the object's true shape.\n"
             "3. Rewrite the question naturally without over-explaining ERP distortion in the direct version.\n"
             "4. full_answer should end with the true shape and may include at most one short supporting clause.\n\n"

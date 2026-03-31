@@ -125,6 +125,12 @@ SEAM_STRUCTURE_LABEL_HINTS = (
     "curb",
     "barrier",
 )
+POLAR_HARD_NEGATIVE_GROUPS = (
+    frozenset({"round", "circular", "circle", "oval", "elliptical"}),
+    frozenset({"rectangular", "rectangle", "square"}),
+    frozenset({"cylindrical", "cylinder", "tubular"}),
+    frozenset({"triangular", "triangle", "conical", "cone"}),
+)
 CAMERA_ROTATION_OPTIONS = [
     ("right", 90),
     ("left", 90),
@@ -249,7 +255,7 @@ def _task_feasible_for_entity(task_family: str, scene: SceneMetadata, entity: En
 
     if task_family == "polar_distortion_awareness":
         has_shape = bool((entity.semantic.attributes or {}).get("shape"))
-        supported = (bool(entity.pole_proximity_flag) or abs(entity.lat_deg) >= 45.0) and has_shape
+        supported = _is_strong_polar_target(entity) and has_shape
         blockers = [] if supported else (["shape_attribute"] if not has_shape else ["polar_distortion_threshold"])
         return supported, blockers
 
@@ -673,16 +679,9 @@ def _build_anchor_tasks(scene: SceneMetadata, anchor_item: Dict[str, Any]) -> Li
 
     supported, _ = _task_feasible_for_entity("polar_distortion_awareness", scene, entity)
     if supported:
-        polar_mode = _sample_polar_shape_mode(scene.scene_id, anchor_id, abs(entity.lat_deg))
-        tasks.append(
-            _make_task(
-                "polar_distortion_awareness",
-                "hard",
-                entity_ids=[anchor_id],
-                evidence_fields=["bfov", "lon_lat", "semantic.attributes.shape"],
-                generation_mode=polar_mode,
-            )
-        )
+        polar_task = _build_polar_distortion_task(scene, entity)
+        if polar_task is not None:
+            tasks.append(polar_task)
 
     return tasks
 
@@ -881,14 +880,216 @@ def _build_seam_neighbor_context(scene: SceneMetadata, target: Entity) -> Option
     }
 
 
-def _sample_polar_shape_mode(scene_id: str, entity_id: str, abs_lat_deg: float) -> str:
-    # 高纬度强畸变区域同时支持“带畸变提示”和“不带提示”的形状题；
-    # 45-60 度之间只做普通真实形状题，避免把畸变说得过强。
-    if abs_lat_deg < 60.0:
-        return "shape_recovery_direct"
-    modes = ["shape_recovery_direct", "shape_recovery_distortion_aware"]
-    digest = hashlib.md5(f"{scene_id}:polar_shape:{entity_id}".encode("utf-8")).hexdigest()
-    return modes[int(digest[:8], 16) % len(modes)]
+def _is_strong_polar_target(entity: Entity) -> bool:
+    return bool(entity.pole_proximity_flag) or abs(entity.lat_deg) >= 60.0
+
+
+def _normalize_phrase(text: Any) -> str:
+    return " ".join(str(text).strip().lower().replace("_", " ").split())
+
+
+def _normalized_shape(entity: Entity) -> str:
+    return _normalize_phrase((entity.semantic.attributes or {}).get("shape", ""))
+
+
+def _entity_bfov_size(scene: SceneMetadata, entity: Entity) -> Tuple[float, float]:
+    resolved = entity.resolved_bfov
+    if resolved is not None and len(resolved) == 4:
+        return abs(float(resolved[2])), abs(float(resolved[3]))
+    if len(entity.bbox_erp) == 4 and scene.erp_width and scene.erp_height:
+        x1, y1, x2, y2 = entity.bbox_erp
+        return (
+            abs(float(x2) - float(x1)) / max(scene.erp_width, 1) * 360.0,
+            abs(float(y2) - float(y1)) / max(scene.erp_height, 1) * 180.0,
+        )
+    return (0.0, 0.0)
+
+
+def _polar_candidate_allowed(scene: SceneMetadata, entity: Entity) -> bool:
+    shape = _normalized_shape(entity)
+    if not shape or not entity.verified_semantics:
+        return False
+    if entity.area_ratio < 0.0015:
+        return False
+    x_fov, y_fov = _entity_bfov_size(scene, entity)
+    if x_fov > 60.0 or y_fov > 60.0 or (x_fov * y_fov) > 2200.0:
+        return False
+    return True
+
+
+def _shape_group(shape: str) -> Optional[int]:
+    tokens = set(_normalize_phrase(shape).split())
+    for index, group in enumerate(POLAR_HARD_NEGATIVE_GROUPS):
+        if tokens & group:
+            return index
+    return None
+
+
+def _shape_similarity_rank(target_shape: str, candidate_shape: str) -> int:
+    target = _normalize_phrase(target_shape)
+    candidate = _normalize_phrase(candidate_shape)
+    if target == candidate:
+        return 0
+    target_group = _shape_group(target)
+    candidate_group = _shape_group(candidate)
+    if target_group is not None and target_group == candidate_group:
+        return 1
+    if set(target.split()) & set(candidate.split()):
+        return 2
+    return 3
+
+
+def _stable_polar_locator_mode(scene_id: str, entity_id: str) -> str:
+    digest = hashlib.md5(f"{scene_id}:polar_locator:{entity_id}".encode("utf-8")).hexdigest()
+    return "bbox_norm_1000" if int(digest[:8], 16) % 2 == 0 else "bfov"
+
+
+def _build_polar_shape_matching_context(scene: SceneMetadata, target: Entity) -> Optional[Dict[str, Any]]:
+    target_shape = _normalized_shape(target)
+    if not target_shape:
+        return None
+    pool = [
+        entity
+        for entity in scene.entities
+        if entity.entity_id != target.entity_id and _polar_candidate_allowed(scene, entity)
+    ]
+    correct_pool = [entity for entity in pool if _normalized_shape(entity) == target_shape]
+    if not correct_pool:
+        return None
+    correct_pool.sort(key=lambda entity: (-entity.area_ratio, entity.label, entity.entity_id))
+    correct = correct_pool[0]
+
+    distractor_pool = [entity for entity in pool if entity.entity_id != correct.entity_id and _normalized_shape(entity) != target_shape]
+    if len(distractor_pool) < 3:
+        return None
+
+    same_label_diff = [
+        entity
+        for entity in distractor_pool
+        if _normalize_phrase(entity.label) == _normalize_phrase(target.label)
+    ]
+    same_label_diff.sort(key=lambda entity: (_shape_similarity_rank(target_shape, _normalized_shape(entity)), -entity.area_ratio, entity.entity_id))
+    hard_negative = same_label_diff[0] if same_label_diff else None
+    if hard_negative is None:
+        ranked = sorted(
+            distractor_pool,
+            key=lambda entity: (_shape_similarity_rank(target_shape, _normalized_shape(entity)), -entity.area_ratio, entity.entity_id),
+        )
+        hard_negative = ranked[0] if ranked else None
+    if hard_negative is None:
+        return None
+
+    used_ids = {correct.entity_id, hard_negative.entity_id}
+    extras = [
+        entity
+        for entity in distractor_pool
+        if entity.entity_id not in used_ids and _normalized_shape(entity) != _normalized_shape(hard_negative)
+    ]
+    extras.sort(key=lambda entity: (_shape_similarity_rank(target_shape, _normalized_shape(entity)), entity.label, entity.entity_id))
+    if len(extras) < 2:
+        return None
+    return {
+        "correct_entity": correct,
+        "choice_entities": [correct, hard_negative, extras[0], extras[1]],
+    }
+
+
+def _build_cross_latitude_matching_context(scene: SceneMetadata, target: Entity) -> Optional[Dict[str, Any]]:
+    target_shape = _normalized_shape(target)
+    if not target_shape:
+        return None
+    pool = [
+        entity
+        for entity in scene.entities
+        if entity.entity_id != target.entity_id and _polar_candidate_allowed(scene, entity)
+    ]
+    low_lat_pool = [entity for entity in pool if abs(entity.lat_deg) <= 35.0]
+    correct_pool = [entity for entity in low_lat_pool if _normalized_shape(entity) == target_shape]
+    if not correct_pool:
+        return None
+    correct_pool.sort(
+        key=lambda entity: (
+            0 if _normalize_phrase(entity.label) == _normalize_phrase(target.label) else 1,
+            abs(entity.lat_deg),
+            -entity.area_ratio,
+            entity.entity_id,
+        )
+    )
+    correct = correct_pool[0]
+
+    same_label_diff = [
+        entity
+        for entity in low_lat_pool
+        if entity.entity_id != correct.entity_id
+        and _normalize_phrase(entity.label) == _normalize_phrase(target.label)
+        and _normalized_shape(entity) != target_shape
+    ]
+    if not same_label_diff:
+        return None
+    same_label_diff.sort(key=lambda entity: (_shape_similarity_rank(target_shape, _normalized_shape(entity)), abs(entity.lat_deg), entity.entity_id))
+    same_label_negative = same_label_diff[0]
+
+    different_label_same_shape = [
+        entity
+        for entity in low_lat_pool
+        if entity.entity_id not in {correct.entity_id, same_label_negative.entity_id}
+        and _normalize_phrase(entity.label) != _normalize_phrase(target.label)
+        and _normalized_shape(entity) == target_shape
+    ]
+    if not different_label_same_shape:
+        return None
+    different_label_same_shape.sort(key=lambda entity: (abs(entity.lat_deg), -entity.area_ratio, entity.entity_id))
+    same_shape_negative = different_label_same_shape[0]
+
+    obvious_wrong = [
+        entity
+        for entity in low_lat_pool
+        if entity.entity_id not in {correct.entity_id, same_label_negative.entity_id, same_shape_negative.entity_id}
+        and _normalized_shape(entity) != target_shape
+        and _normalize_phrase(entity.label) != _normalize_phrase(target.label)
+    ]
+    if not obvious_wrong:
+        return None
+    obvious_wrong.sort(key=lambda entity: (_shape_similarity_rank(target_shape, _normalized_shape(entity)), abs(entity.lat_deg), entity.entity_id))
+    wrong = obvious_wrong[-1]
+
+    return {
+        "correct_entity": correct,
+        "choice_entities": [correct, same_label_negative, same_shape_negative, wrong],
+    }
+
+
+def _build_polar_distortion_task(scene: SceneMetadata, entity: Entity) -> Optional[Dict[str, Any]]:
+    if not _is_strong_polar_target(entity):
+        return None
+    if not _normalized_shape(entity):
+        return None
+
+    valid_modes = ["shape_recovery_direct", "shape_recovery_distortion_aware"]
+    shape_matching = _build_polar_shape_matching_context(scene, entity)
+    if shape_matching is not None:
+        valid_modes.append("shape_matching")
+    cross_latitude = _build_cross_latitude_matching_context(scene, entity)
+    if cross_latitude is not None:
+        valid_modes.append("cross_latitude_matching")
+
+    digest = hashlib.md5(f"{scene.scene_id}:polar_shape:{entity.entity_id}".encode("utf-8")).hexdigest()
+    mode = valid_modes[int(digest[:8], 16) % len(valid_modes)]
+    task = _make_task(
+        "polar_distortion_awareness",
+        "hard",
+        entity_ids=[entity.entity_id],
+        evidence_fields=["bfov", "bbox_erp", "lon_lat", "semantic.attributes.shape"],
+        generation_mode=mode,
+    )
+    task["polar_target_locator_mode"] = _stable_polar_locator_mode(scene.scene_id, entity.entity_id)
+    if mode == "shape_matching" and shape_matching is not None:
+        task["polar_choice_entity_ids"] = [item.entity_id for item in shape_matching["choice_entities"]]
+        task["polar_correct_entity_id"] = shape_matching["correct_entity"].entity_id
+    elif mode == "cross_latitude_matching" and cross_latitude is not None:
+        task["polar_choice_entity_ids"] = [item.entity_id for item in cross_latitude["choice_entities"]]
+        task["polar_correct_entity_id"] = cross_latitude["correct_entity"].entity_id
+    return task
 
 
 def _build_contextual_anchor_tasks(scene: SceneMetadata, anchor_item: Dict[str, Any]) -> List[Dict[str, Any]]:
