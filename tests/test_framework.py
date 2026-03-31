@@ -129,6 +129,21 @@ class FrameworkTestCase(unittest.TestCase):
         self.assertIn("scenes", bundle)
         self.assertEqual(bundle["summary"]["scene_count"], 1)
 
+    def test_seam_continuity_uses_new_subtypes(self) -> None:
+        seam_samples = [sample for sample in self.samples if sample["task_family"] == "seam_continuity"]
+        self.assertTrue(seam_samples)
+        allowed_modes = {
+            "nearest_neighbor",
+            "relative_direction",
+            "dedup_count",
+            "structure_continuity",
+            "same_entity_judgement",
+        }
+        for sample in seam_samples:
+            self.assertIn(sample.get("generation_mode"), allowed_modes)
+            metadata = sample.get("metadata", {})
+            self.assertEqual(metadata.get("seam_mode"), sample.get("generation_mode"))
+
 
 if __name__ == "__main__":
     unittest.main()

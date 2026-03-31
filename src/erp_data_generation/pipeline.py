@@ -108,6 +108,23 @@ NEGATIVE_EXISTENCE_CANDIDATES = [
     "whiteboard",
 ]
 PANORAMIC_RELATION_MIN_DELTA_DEG = 15.0
+SEAM_STRUCTURE_LABEL_HINTS = (
+    "wall",
+    "table",
+    "desk",
+    "counter",
+    "countertop",
+    "road",
+    "floor",
+    "ground",
+    "ceiling",
+    "railing",
+    "guardrail",
+    "handrail",
+    "ledge",
+    "curb",
+    "barrier",
+)
 CAMERA_ROTATION_OPTIONS = [
     ("right", 90),
     ("left", 90),
@@ -650,16 +667,9 @@ def _build_anchor_tasks(scene: SceneMetadata, anchor_item: Dict[str, Any]) -> Li
 
     supported, _ = _task_feasible_for_entity("seam_continuity", scene, entity)
     if supported:
-        seam_mode = _sample_seam_continuity_mode(scene.scene_id, anchor_id)
-        tasks.append(
-            _make_task(
-                "seam_continuity",
-                "hard",
-                entity_ids=[anchor_id],
-                evidence_fields=["bbox_erp", "mask_rle", "seam_crossing_flag"],
-                generation_mode=seam_mode,
-            )
-        )
+        seam_task = _build_seam_continuity_task(scene, entity)
+        if seam_task is not None:
+            tasks.append(seam_task)
 
     supported, _ = _task_feasible_for_entity("polar_distortion_awareness", scene, entity)
     if supported:
@@ -722,15 +732,153 @@ def _sample_distance_estimation_mode(scene_id: str, entity_id: str, has_choice_m
     return modes[int(digest[:8], 16) % len(modes)]
 
 
-def _sample_seam_continuity_mode(scene_id: str, entity_id: str) -> str:
-    modes = [
-        "same_instance_yesno",
-        "counterpart_boundary_side",
-        "wrap_explanation",
-        "rotation_continuity",
+def _build_seam_continuity_task(scene: SceneMetadata, entity: Entity) -> Optional[Dict[str, Any]]:
+    if not bool(entity.seam_crossing_flag):
+        return None
+
+    valid_modes = ["dedup_count", "same_entity_judgement"]
+    seam_context = _build_seam_neighbor_context(scene, entity)
+    if seam_context is not None:
+        valid_modes.extend(["nearest_neighbor", "relative_direction"])
+    if _is_structure_like_seam_entity(entity):
+        valid_modes.append("structure_continuity")
+
+    if not valid_modes:
+        return None
+
+    digest = hashlib.md5(f"{scene.scene_id}:seam_continuity:{entity.entity_id}".encode("utf-8")).hexdigest()
+    mode = valid_modes[int(digest[:8], 16) % len(valid_modes)]
+    task = _make_task(
+        "seam_continuity",
+        "hard",
+        entity_ids=[entity.entity_id],
+        evidence_fields=["bbox_erp", "mask_rle", "seam_crossing_flag"],
+        generation_mode=mode,
+    )
+    task["seam_valid_modes"] = list(valid_modes)
+    task["seam_target_side"] = _preferred_seam_target_side(scene, entity)
+    if seam_context is not None:
+        task["seam_partner_id"] = seam_context["correct_entity"].entity_id
+        task["seam_choice_entity_ids"] = [candidate.entity_id for candidate in seam_context["choice_entities"]]
+        task["seam_wrap_gap_deg"] = seam_context["wrap_gap_deg"]
+        task["seam_relation"] = seam_context["relation"]
+    return task
+
+
+def _entity_boundary_contacts(scene: SceneMetadata, entity: Entity) -> set[str]:
+    contacts: set[str] = set()
+    if len(entity.bbox_erp) == 4 and scene.erp_width:
+        x1, _, x2, _ = [float(v) for v in entity.bbox_erp]
+        margin = max(12.0, scene.erp_width * 0.03)
+        if x1 <= margin:
+            contacts.add("left")
+        if x2 >= (scene.erp_width - margin):
+            contacts.add("right")
+    if not contacts and bool(entity.seam_crossing_flag):
+        contacts.add("left" if _yaw_deg_360(entity) >= 180.0 else "right")
+    return contacts
+
+
+def _preferred_seam_target_side(scene: SceneMetadata, entity: Entity) -> str:
+    contacts = _entity_boundary_contacts(scene, entity)
+    if contacts == {"left"}:
+        return "left"
+    if contacts == {"right"}:
+        return "right"
+    return "left" if _yaw_deg_360(entity) >= 180.0 else "right"
+
+
+def _flat_x_gap_px(scene: SceneMetadata, entity_a: Entity, entity_b: Entity) -> float:
+    if len(entity_a.bbox_erp) == 4 and len(entity_b.bbox_erp) == 4:
+        ax1, _, ax2, _ = [float(v) for v in entity_a.bbox_erp]
+        bx1, _, bx2, _ = [float(v) for v in entity_b.bbox_erp]
+        center_a = (ax1 + ax2) / 2.0
+        center_b = (bx1 + bx2) / 2.0
+        return abs(center_a - center_b)
+    if scene.erp_width:
+        x_a = (_yaw_deg_360(entity_a) / 360.0) * scene.erp_width
+        x_b = (_yaw_deg_360(entity_b) / 360.0) * scene.erp_width
+        return abs(x_a - x_b)
+    return 0.0
+
+
+def _is_structure_like_seam_entity(entity: Entity) -> bool:
+    text = f"{entity.label} {entity.semantic.reground_query}".lower()
+    return any(hint in text for hint in SEAM_STRUCTURE_LABEL_HINTS)
+
+
+def _build_seam_neighbor_context(scene: SceneMetadata, target: Entity) -> Optional[Dict[str, Any]]:
+    if not scene.erp_width:
+        return None
+
+    target_side = _preferred_seam_target_side(scene, target)
+    opposite_side = "right" if target_side == "left" else "left"
+    candidates: List[Dict[str, Any]] = []
+    for entity in scene.entities:
+        if entity.entity_id == target.entity_id:
+            continue
+        if not entity.verified_semantics:
+            continue
+        contacts = _entity_boundary_contacts(scene, entity)
+        wrap_gap = abs(_wrapped_delta_deg(_yaw_deg_360(entity) - _yaw_deg_360(target)))
+        flat_gap = _flat_x_gap_px(scene, target, entity)
+        candidates.append(
+            {
+                "entity": entity,
+                "contacts": contacts,
+                "wrap_gap": wrap_gap,
+                "flat_gap": flat_gap,
+            }
+        )
+
+    opposite_candidates = [
+        item
+        for item in candidates
+        if opposite_side in item["contacts"] and item["wrap_gap"] <= 35.0 and item["flat_gap"] >= scene.erp_width * 0.45
     ]
-    digest = hashlib.md5(f"{scene_id}:seam_continuity:{entity_id}".encode("utf-8")).hexdigest()
-    return modes[int(digest[:8], 16) % len(modes)]
+    if not opposite_candidates:
+        return None
+    opposite_candidates.sort(key=lambda item: (item["wrap_gap"], -item["flat_gap"], item["entity"].label))
+    correct = opposite_candidates[0]
+
+    lure_candidates = [
+        item
+        for item in candidates
+        if item["entity"].entity_id != correct["entity"].entity_id
+        and item["flat_gap"] <= max(80.0, scene.erp_width * 0.18)
+        and item["wrap_gap"] >= max(correct["wrap_gap"] + 20.0, 45.0)
+    ]
+    if not lure_candidates:
+        return None
+    lure_candidates.sort(key=lambda item: (item["flat_gap"], -item["wrap_gap"], item["entity"].label))
+    selected = [correct["entity"], lure_candidates[0]["entity"]]
+    used_ids = {entity.entity_id for entity in selected}
+
+    extras = sorted(
+        [
+            item
+            for item in candidates
+            if item["entity"].entity_id not in used_ids and item["wrap_gap"] >= max(correct["wrap_gap"] + 10.0, 30.0)
+        ],
+        key=lambda item: (-len(item["contacts"]), item["wrap_gap"], item["entity"].label),
+    )
+    for item in extras:
+        selected.append(item["entity"])
+        used_ids.add(item["entity"].entity_id)
+        if len(selected) >= 4:
+            break
+    if len(selected) < 3:
+        return None
+
+    delta = _wrapped_delta_deg(_yaw_deg_360(correct["entity"]) - _yaw_deg_360(target))
+    relation = "immediately across the seam on the right" if delta > 0 else "immediately across the seam on the left"
+    return {
+        "target_side": target_side,
+        "correct_entity": correct["entity"],
+        "choice_entities": selected,
+        "wrap_gap_deg": round(correct["wrap_gap"], 2),
+        "relation": relation,
+    }
 
 
 def _sample_polar_shape_mode(scene_id: str, entity_id: str, abs_lat_deg: float) -> str:

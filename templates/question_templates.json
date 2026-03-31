@@ -149,25 +149,25 @@
     "Select the most accurate camera-centered 3D relation of {entity_a} with respect to {entity_b}: {choice_list}.",
     "Which listed relation best fits {entity_a} relative to {entity_b} in the current camera-centered scene: {choice_list}?"
   ],
-  "seam_continuity.same_instance_yesno": [
-    "Do the left-edge and right-edge fragments of the {target_label} refer to the same object?",
-    "Is the {target_label} split across the ERP seam still one continuous instance?",
-    "For the object near BFOV {bfov}, are the two ERP boundary sides connected as one object?"
+  "seam_continuity.nearest_neighbor": [
+    "Which listed object is actually nearest to {target_ref} near the {target_side} image edge: {choice_list}?",
+    "For the {target_ref} close to the {target_side} image boundary, which candidate is truly the nearest neighbor: {choice_list}?"
   ],
-  "seam_continuity.counterpart_boundary_side": [
-    "If one fragment of the {target_label} appears near the {hinted_side}, where should its matching continuation appear?",
-    "For the seam-crossing {target_label} near BFOV {bfov}, which panorama boundary should contain the matching counterpart of a fragment on the {hinted_side}?",
-    "When the {target_label} wraps across the ERP seam, where does the matching continuation of a fragment on the {hinted_side} appear?"
+  "seam_continuity.relative_direction": [
+    "What is the relation of {neighbor_ref} relative to {target_ref} across the left-right image boundary: {choice_list}?",
+    "Across the image seam, how should {neighbor_ref} be described relative to {target_ref}: {choice_list}?"
   ],
-  "seam_continuity.wrap_explanation": [
-    "What best explains why the {target_label} appears on both sides of the ERP panorama boundary?",
-    "Why does the {target_label} near BFOV {bfov} show fragments on both panorama edges?",
-    "What is the most plausible explanation for the split appearance of the {target_label} across the left-right ERP boundary?"
+  "seam_continuity.dedup_count": [
+    "The left-edge and right-edge visible parts of {target_ref} should be counted as: {choice_list}.",
+    "When counting {target_ref} across the image boundary, these two visible parts should be treated as: {choice_list}."
   ],
-  "seam_continuity.rotation_continuity": [
-    "If the ERP seam were moved away from the {target_label}, would it likely appear as one continuous object?",
-    "Would the seam-crossing {target_label} near BFOV {bfov} become visually continuous if the panorama boundary were shifted?",
-    "If the left-right panorama seam no longer cut through the {target_label}, should it appear as a single continuous instance?"
+  "seam_continuity.structure_continuity": [
+    "For the {target_ref} touching both image sides, which explanation is more reasonable: {choice_list}?",
+    "For the boundary-touching {target_ref}, which structural interpretation is most reasonable: {choice_list}?"
+  ],
+  "seam_continuity.same_entity_judgement": [
+    "The left-edge and right-edge appearances of {target_ref} are best described as: {choice_list}.",
+    "How should the left-side and right-side appearances of {target_ref} be interpreted: {choice_list}?"
   ],
   "polar_distortion_awareness.shape_direct": [
     "What shape best describes the {target_label} near BFOV {bfov}?",

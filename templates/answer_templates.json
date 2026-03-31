@@ -118,20 +118,10 @@
     "In the camera-centered frame, the best option is {relation}.",
     "Relative to the other object in camera space, {relation} is the correct choice."
   ],
-  "seam_continuity.true": [
-    "yes",
-    "Yes, it is one continuous object.",
-    "Yes, the boundary fragments belong to the same object."
-  ],
-  "seam_continuity.boundary_side": [
-    "{side}",
-    "Its matching continuation should appear near the {side}.",
-    "The corresponding fragment is expected on the {side}."
-  ],
-  "seam_continuity.explanation": [
-    "{explanation}",
-    "The split is caused by {explanation}.",
-    "This happens because {explanation}."
+  "seam_continuity.choice": [
+    "{answer}",
+    "The best interpretation is {answer}.",
+    "The correct choice is {answer}."
   ],
   "polar_distortion_awareness.shape": [
     "{shape}",

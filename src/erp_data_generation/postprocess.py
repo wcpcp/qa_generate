@@ -306,14 +306,23 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
     elif mode == "seam_continuity_repackage":
         entity = entities[0]
         seam_mode = sample.get("generation_mode")
-        facts.update({"target_label": entity.label, "target_bfov": metadata.get("bfov"), "seam_mode": seam_mode})
-        if seam_mode == "counterpart_boundary_side":
-            facts["fragment_side"] = metadata.get("hinted_boundary_side")
-            facts["canonical_side"] = sample["canonical_answer"]
-        elif seam_mode == "wrap_explanation":
-            facts["canonical_explanation"] = sample["canonical_answer"]
+        facts.update(
+            {
+                "target_label": entity.label,
+                "target_ref": metadata.get("entity_ref") or metadata.get("target_label"),
+                "target_bfov": metadata.get("bfov"),
+                "target_side": metadata.get("target_side"),
+                "seam_mode": seam_mode,
+                "choice_candidates": metadata.get("choice_candidates"),
+            }
+        )
+        if seam_mode == "nearest_neighbor":
+            facts["canonical_neighbor"] = sample["canonical_answer"]
+        elif seam_mode == "relative_direction":
+            facts["neighbor_ref"] = metadata.get("neighbor_ref")
+            facts["canonical_relation"] = sample["canonical_answer"]
         else:
-            facts["canonical_truth"] = sample["canonical_answer"]
+            facts["canonical_answer"] = sample["canonical_answer"]
     elif mode == "polar_distortion_awareness_repackage":
         entity = entities[0]
         abs_lat = abs(float(entity.lat_deg))
@@ -640,55 +649,68 @@ def _render_prompt(mode: str, sample: Dict[str, Any], facts: Dict[str, Any], vis
 
     if mode == "seam_continuity_repackage":
         seam_mode = sample.get("generation_mode")
-        if seam_mode == "counterpart_boundary_side":
+        if seam_mode == "nearest_neighbor":
             return _deterministic_prompt(
                 facts_json,
-                "seam continuity boundary-side matching",
+                "seam continuity nearest-neighbor reasoning",
                 [
-                    "Read the target label, BFOV cue, fragment_side, and canonical_side carefully.",
-                    "Interpret the task as ERP wrap-around matching between the left and right panorama boundaries.",
-                    "Preserve exactly which boundary contains the continuation fragment.",
-                    "Rewrite the question so it is clearly about left-right wrap-around continuation rather than a generic spatial relation.",
+                    "Read the target_ref, target_side, choice_candidates, and canonical_neighbor carefully.",
+                    "Interpret the task as a seam-aware nearest-neighbor judgement on a 360 panorama.",
+                    "Preserve exactly which listed object is nearest once left-right wrap-around is taken into account.",
+                    "Rewrite the question so it depends on the seam-aware interpretation of the boundary region rather than plain flat-image proximity.",
                 ],
-                "full_answer must preserve the same boundary-side truth exactly.",
+                "full_answer must preserve the same nearest-neighbor object exactly.",
                 allow_reasoning=True,
             )
-        if seam_mode == "wrap_explanation":
+        if seam_mode == "relative_direction":
             return _deterministic_prompt(
                 facts_json,
-                "seam continuity explanation",
+                "seam continuity relative-direction reasoning",
                 [
-                    "Read the target label, BFOV cue, and canonical_explanation carefully.",
-                    "Interpret the split appearance as ERP wrap-around across the left-right boundary.",
-                    "Rewrite the question so it asks for the wrap-around explanation rather than a generic imaging artifact explanation.",
-                    "full_answer may include one short clarifying clause, but it must still state ERP wrap-around as the core explanation.",
+                    "Read the target_ref, neighbor_ref, and canonical_relation carefully.",
+                    "Interpret the task as a wrap-around directional relation across the left-right panorama boundary.",
+                    "Preserve exactly how the named neighbor should be described relative to the target.",
+                    "Rewrite the question so it is explicitly about seam-aware relative direction instead of a generic left-right image judgement.",
                 ],
-                "full_answer must preserve ERP left-right wrap-around as the explanation.",
+                "full_answer must preserve the same seam-aware relation exactly.",
                 allow_reasoning=True,
             )
-        if seam_mode == "rotation_continuity":
+        if seam_mode == "dedup_count":
             return _deterministic_prompt(
                 facts_json,
-                "seam continuity under boundary shift",
+                "seam continuity de-duplication counting",
                 [
-                    "Read the target label, BFOV cue, and canonical_truth carefully.",
-                    "Interpret the task as asking whether shifting the ERP boundary would make the object visually continuous.",
-                    "Preserve the wrap-around continuity truth exactly.",
-                    "Rewrite the question so the boundary-shift thought experiment is explicit.",
+                    "Read the target_ref and canonical_answer carefully.",
+                    "Interpret the two boundary-touching appearances as parts that may need to be merged for seam-aware counting.",
+                    "Preserve exactly whether they should be counted as one continuous object or not.",
+                    "Rewrite the question so it is clearly about seam-aware counting rather than generic object counting.",
                 ],
-                "full_answer must preserve the same yes/no continuity truth exactly.",
+                "full_answer must preserve the same counting interpretation exactly.",
+                allow_reasoning=True,
+            )
+        if seam_mode == "structure_continuity":
+            return _deterministic_prompt(
+                facts_json,
+                "seam continuity structural interpretation",
+                [
+                    "Read the target_ref and canonical_answer carefully.",
+                    "Interpret the task as deciding whether the boundary-touching structure continues across the ERP seam.",
+                    "Preserve exactly the structural interpretation chosen in the canonical answer.",
+                    "Rewrite the question so it is explicitly about 360 structural continuity rather than generic edge truncation.",
+                ],
+                "full_answer must preserve the same structural interpretation exactly.",
                 allow_reasoning=True,
             )
         return _deterministic_prompt(
             facts_json,
-            "seam continuity same-instance judgement",
+            "seam continuity same-entity judgement",
             [
-                "Read the target label, BFOV cue, and canonical_truth carefully.",
-                "Interpret the two fragments as possible ERP wrap-around views of the same object.",
-                "Preserve the same-instance truth exactly.",
-                "Rewrite the question so it is explicitly about ERP left-right wrap-around rather than a normal image split.",
+                "Read the target_ref and canonical_answer carefully.",
+                "Interpret the left-edge and right-edge appearances as possible views of one seam-crossing object.",
+                "Preserve exactly the same-entity interpretation from the canonical answer.",
+                "Rewrite the question so it is explicitly about ERP wrap-around identity rather than ordinary image fragmentation.",
             ],
-            "full_answer must preserve the same yes/no same-instance truth exactly.",
+            "full_answer must preserve the same same-entity interpretation exactly.",
             allow_reasoning=True,
         )
 

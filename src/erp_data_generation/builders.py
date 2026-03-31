@@ -223,7 +223,7 @@ def _realize_task(
 
     if task_family == "seam_continuity":
         entity = entities[0]
-        return _realize_seam_continuity(scene, entity, generation_mode, templates, answer_templates, template_seed)
+        return _realize_seam_continuity(scene, task, entity, generation_mode, templates, answer_templates, template_seed)
 
     if task_family == "polar_distortion_awareness":
         entity = entities[0]
@@ -576,40 +576,114 @@ def _realize_polar_distortion_awareness(
 
 def _realize_seam_continuity(
     scene: SceneMetadata,
+    task: Dict[str, Any],
     entity: Entity,
     generation_mode: str,
     templates: Dict[str, List[str]],
     answer_templates: Dict[str, List[str]],
     template_seed: str,
 ) -> Tuple[str, Any, str, Dict[str, Any], Optional[Dict[str, Any]], str, int]:
-    mode = generation_mode or "same_instance_yesno"
+    entity_by_id = {item.entity_id: item for item in scene.entities}
+    valid_modes = list(task.get("seam_valid_modes", []) or ["same_entity_judgement", "dedup_count"])
+    mode = generation_mode or valid_modes[0]
+    if mode not in valid_modes:
+        digest = hashlib.md5(f"{template_seed}:seam_fallback".encode("utf-8")).hexdigest()
+        mode = valid_modes[int(digest[:8], 16) % len(valid_modes)]
     template_key = f"seam_continuity.{mode}"
     template, index = _pick_template(templates, template_key, template_seed)
-    bfov = _bfov_text(_entity_bfov(scene, entity))
     metadata = {
         **_entity_loc_metadata(scene, entity),
         "seam_crossing_flag": bool(entity.seam_crossing_flag),
         "seam_mode": mode,
+        "seam_subtype": mode,
     }
-    target_label = _display_label(entity.label)
-    if mode == "counterpart_boundary_side":
-        hinted_side, answer_side = _seam_boundary_direction(entity)
-        question = template.format(target_label=target_label, bfov=bfov, hinted_side=hinted_side)
-        metadata["hinted_boundary_side"] = hinted_side
-        answer_text = _pick_answer_template(answer_templates, "seam_continuity.boundary_side", template_seed, side=answer_side)
-        return question, answer_side, answer_text, metadata, None, template_key, index
-    if mode == "wrap_explanation":
-        explanation = "ERP wrap-around across the left-right boundary"
-        question = template.format(target_label=target_label, bfov=bfov)
-        answer_text = _pick_answer_template(answer_templates, "seam_continuity.explanation", template_seed, explanation=explanation)
-        return question, explanation, answer_text, metadata, None, template_key, index
-    if mode == "rotation_continuity":
-        question = template.format(target_label=target_label, bfov=bfov)
-        answer_text = _pick_answer_template(answer_templates, "seam_continuity.true", template_seed, truth="yes")
-        return question, True, answer_text, metadata, None, template_key, index
-    question = template.format(target_label=target_label, bfov=bfov)
-    answer_text = _pick_answer_template(answer_templates, "seam_continuity.true", template_seed, truth="yes")
-    return question, True, answer_text, metadata, None, template_key, index
+    target_ref = _grounding_ref(entity)
+    target_side = str(task.get("seam_target_side", _preferred_seam_target_side(scene, entity)))
+    metadata["target_side"] = target_side
+
+    if mode == "nearest_neighbor":
+        choice_entities = _resolve_seam_choice_entities(task, entity_by_id)
+        correct_entity = entity_by_id.get(str(task.get("seam_partner_id", "")))
+        if correct_entity is None or len(choice_entities) < 3:
+            return "", None, "", {}, None, "", 0
+        choice_refs = [_grounding_ref(item) for item in choice_entities]
+        answer = _grounding_ref(correct_entity)
+        metadata.update(
+            {
+                "choice_candidates": choice_refs,
+                "neighbor_ref": answer,
+                "neighbor_entity_id": correct_entity.entity_id,
+                "wrap_gap_deg": task.get("seam_wrap_gap_deg"),
+            }
+        )
+        question = template.format(target_ref=target_ref, target_side=target_side, choice_list=", ".join(choice_refs))
+        answer_text = _pick_answer_template(answer_templates, "seam_continuity.choice", template_seed, answer=answer)
+        return question, answer, answer_text, metadata, None, template_key, index
+
+    if mode == "relative_direction":
+        partner = entity_by_id.get(str(task.get("seam_partner_id", "")))
+        relation = str(task.get("seam_relation", "")).strip()
+        if partner is None or not relation:
+            return "", None, "", {}, None, "", 0
+        choices = [
+            "immediately across the seam on the left",
+            "immediately across the seam on the right",
+            "roughly opposite in the panorama",
+            "not actually seam-adjacent",
+        ]
+        metadata.update(
+            {
+                "neighbor_ref": _grounding_ref(partner),
+                "neighbor_entity_id": partner.entity_id,
+                "choice_candidates": choices,
+                "canonical_relation": relation,
+            }
+        )
+        question = template.format(
+            target_ref=target_ref,
+            neighbor_ref=_grounding_ref(partner),
+            choice_list=", ".join(choices),
+        )
+        answer_text = _pick_answer_template(answer_templates, "seam_continuity.choice", template_seed, answer=relation)
+        return question, relation, answer_text, metadata, None, template_key, index
+
+    if mode == "dedup_count":
+        choices = [
+            "one continuous object",
+            "two separate objects",
+            "cannot determine from the panorama",
+        ]
+        answer = "one continuous object"
+        metadata["choice_candidates"] = choices
+        question = template.format(target_ref=target_ref, choice_list=", ".join(choices))
+        answer_text = _pick_answer_template(answer_templates, "seam_continuity.choice", template_seed, answer=answer)
+        return question, answer, answer_text, metadata, None, template_key, index
+
+    if mode == "structure_continuity":
+        target_kind = _display_label(entity.label)
+        choices = [
+            f"one continuous {target_kind} structure across the seam",
+            f"two unrelated {target_kind} parts that only look similar",
+            "a mirrored or reflective duplication rather than a continuous structure",
+            "a local fragment that should terminate at the edge",
+        ]
+        answer = choices[0]
+        metadata["choice_candidates"] = choices
+        question = template.format(target_ref=target_ref, choice_list=", ".join(choices))
+        answer_text = _pick_answer_template(answer_templates, "seam_continuity.choice", template_seed, answer=answer)
+        return question, answer, answer_text, metadata, None, template_key, index
+
+    choices = [
+        "two views of the same continuous object across the seam",
+        "two different objects of the same category",
+        "one object and one unrelated background fragment",
+        "cannot determine from the panorama",
+    ]
+    answer = choices[0]
+    metadata["choice_candidates"] = choices
+    question = template.format(target_ref=target_ref, choice_list=", ".join(choices))
+    answer_text = _pick_answer_template(answer_templates, "seam_continuity.choice", template_seed, answer=answer)
+    return question, answer, answer_text, metadata, None, template_key, index
 
 
 def _build_scene_understanding_stub(task: Dict[str, Any]) -> Tuple[str, Any, str, Dict[str, Any], Optional[Dict[str, Any]], str, int]:
@@ -722,16 +796,37 @@ def _bfov_text(bfov: Sequence[float]) -> str:
     return f"[{bfov[0]}, {bfov[1]}, {bfov[2]}, {bfov[3]}]"
 
 
-def _seam_boundary_direction(entity: Entity) -> Tuple[str, str]:
-    if len(entity.bbox_erp) != 4:
-        return ("left boundary", "right boundary")
-    x1, _, x2, _ = entity.bbox_erp
-    if float(x1) > float(x2):
-        return ("left boundary", "right boundary")
-    yaw = _yaw_deg_360(entity)
-    if yaw >= 180.0:
-        return ("left boundary", "right boundary")
-    return ("right boundary", "left boundary")
+def _resolve_seam_choice_entities(task: Dict[str, Any], entity_by_id: Dict[str, Entity]) -> List[Entity]:
+    entities: List[Entity] = []
+    for entity_id in task.get("seam_choice_entity_ids", []) or []:
+        entity = entity_by_id.get(str(entity_id))
+        if entity is None:
+            continue
+        entities.append(entity)
+    return entities
+
+
+def _preferred_seam_target_side(scene: SceneMetadata, entity: Entity) -> str:
+    contacts = _entity_boundary_contacts(scene, entity)
+    if contacts == {"left"}:
+        return "left"
+    if contacts == {"right"}:
+        return "right"
+    return "left" if _yaw_deg_360(entity) >= 180.0 else "right"
+
+
+def _entity_boundary_contacts(scene: SceneMetadata, entity: Entity) -> set[str]:
+    contacts: set[str] = set()
+    if len(entity.bbox_erp) == 4 and scene.erp_width:
+        x1, _, x2, _ = [float(v) for v in entity.bbox_erp]
+        margin = max(12.0, scene.erp_width * 0.03)
+        if x1 <= margin:
+            contacts.add("left")
+        if x2 >= (scene.erp_width - margin):
+            contacts.add("right")
+    if not contacts and bool(entity.seam_crossing_flag):
+        contacts.add("left" if _yaw_deg_360(entity) >= 180.0 else "right")
+    return contacts
 
 
 def _choose_attribute(entity: Entity) -> Tuple[str, Any]:
