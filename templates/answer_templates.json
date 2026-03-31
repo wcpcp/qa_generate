@@ -2,62 +2,94 @@
   "caption.identify": [
     "{label}",
     "It is a {label}.",
-    "The target object is a {label}."
+    "The target object is a {label}.",
+    "Answer: {label}.",
+    "{label} is the best match.",
+    "This object is best identified as a {label}."
   ],
   "caption.attribute": [
     "{attribute_value}",
     "Its {attribute_name} is {attribute_value}.",
-    "The visible {attribute_name} is {attribute_value}."
+    "The visible {attribute_name} is {attribute_value}.",
+    "Answer: {attribute_value}.",
+    "It appears {attribute_value} in {attribute_name}.",
+    "The best attribute value here is {attribute_value}."
   ],
   "caption.description": [
     "{description}",
     "A concise description is: {description}",
-    "The object can be described as: {description}"
+    "The object can be described as: {description}",
+    "One short caption is: {description}",
+    "A compact answer would be: {description}"
   ],
   "caption.dense_description": [
     "{description}",
     "A detailed description is: {description}",
-    "The target object can be described in more detail as: {description}"
+    "The target object can be described in more detail as: {description}",
+    "A fuller object caption is: {description}",
+    "A detailed answer is: {description}"
   ],
   "existence.true": [
     "yes",
     "Yes, it is present.",
-    "Yes, at least one is visible."
+    "Yes, at least one is visible.",
+    "Present.",
+    "Yes, the panorama does contain one."
   ],
   "existence.false": [
     "no",
     "No, it is not visible.",
-    "No, none can be found."
+    "No, none can be found.",
+    "Not present.",
+    "No, the panorama does not show one."
   ],
   "counting": [
     "{count}",
     "There are {count} visible.",
-    "The visible count is {count}."
+    "The visible count is {count}.",
+    "{count} in total.",
+    "Count = {count}.",
+    "A seam-aware count gives {count}."
   ],
   "grounding.full": [
     "bbox_norm_1000={bbox}, bfov={bfov}",
     "The location is bbox {bbox} with BFOV {bfov}.",
-    "Use bbox {bbox}; the BFOV is {bfov}."
+    "Use bbox {bbox}; the BFOV is {bfov}.",
+    "Normalized box: {bbox}; BFOV: {bfov}.",
+    "Answer with box {bbox} and BFOV {bfov}.",
+    "A valid localization is bbox {bbox} with BFOV {bfov}."
   ],
   "grounding.bbox_only": [
     "{bbox}",
     "bbox_norm_1000={bbox}",
-    "The normalized box is {bbox}."
+    "The normalized box is {bbox}.",
+    "Answer: {bbox}.",
+    "Use normalized box {bbox}.",
+    "The ERP box is {bbox}."
   ],
   "grounding.angles_only": [
     "bfov={bfov}",
     "The BFOV is {bfov}.",
-    "Use BFOV {bfov}."
+    "Use BFOV {bfov}.",
+    "Answer: {bfov}.",
+    "The angular footprint is {bfov}.",
+    "A correct BFOV is {bfov}."
   ],
   "direct_direction.precise": [
     "bfov={bfov}",
     "Its ERP BFOV is {bfov}.",
-    "Use BFOV {bfov}."
+    "Use BFOV {bfov}.",
+    "Answer: {bfov}.",
+    "The precise panorama BFOV is {bfov}.",
+    "It is located at BFOV {bfov}."
   ],
   "direct_direction.cardinal": [
     "{direction}",
     "It lies in the {direction} sector.",
-    "The coarse direction is {direction}."
+    "The coarse direction is {direction}.",
+    "Answer: {direction}.",
+    "{direction} is the best 8-way label.",
+    "In broad panorama terms, it is {direction}."
   ],
   "relative_direction": [
     "{relation}",
@@ -67,7 +99,10 @@
     "On the panorama ring, it falls {relation}.",
     "Relative to the reference on the 360 ring, it is {relation}.",
     "From the observer-centered panorama ring, the best label is {relation}.",
-    "Around the horizontal panorama ring, it lies {relation}."
+    "Around the horizontal panorama ring, it lies {relation}.",
+    "Answer: {relation}.",
+    "The ring-based relation is {relation}.",
+    "{relation} on the panoramic ring."
   ],
   "view_transform": [
     "{direction}",
@@ -78,26 +113,38 @@
     "From the updated viewpoint, it would appear {direction}.",
     "After the observer turns, it lands {direction} in the new view.",
     "Relative to the new facing direction, it is {direction}.",
-    "Once the view is reoriented, it should appear {direction}."
+    "Once the view is reoriented, it should appear {direction}.",
+    "Answer: {direction}.",
+    "The reoriented-view label is {direction}.",
+    "{direction} in the transformed viewpoint."
   ],
   "distance_estimation": [
     "{depth_m}",
     "{depth_m} meters",
     "Its estimated distance is {depth_m} meters.",
-    "Approximately {depth_m} meters away."
+    "Approximately {depth_m} meters away.",
+    "Answer: {depth_m} m.",
+    "A reasonable estimate is {depth_m} meters.",
+    "About {depth_m} meters."
   ],
   "distance_estimation.choice": [
     "{label}",
     "The closest one is {label}.",
     "{label} is the nearest candidate.",
     "Among the listed options, {label} is the closest.",
-    "The nearest object in the candidate set is {label}."
+    "The nearest object in the candidate set is {label}.",
+    "Answer: {label}.",
+    "{label} is the best choice.",
+    "Choose {label}."
   ],
   "distance_estimation.observer_choice": [
     "{label}",
     "The closest object to the observer is {label}.",
     "{label} is nearest to the camera center.",
-    "Among the listed options, {label} is closest to the viewer."
+    "Among the listed options, {label} is closest to the viewer.",
+    "Answer: {label}.",
+    "The nearest listed object is {label}.",
+    "Choose {label} as the closest one."
   ],
   "relative_3d_position": [
     "{relation}",
@@ -107,7 +154,10 @@
     "From the current camera viewpoint, it is {relation}.",
     "In the current camera-centered 3D frame, it is {relation}.",
     "Relative to the other object in camera space, it is {relation}.",
-    "From this viewpoint, the best 3D description is {relation}."
+    "From this viewpoint, the best 3D description is {relation}.",
+    "Answer: {relation}.",
+    "The camera-view relation is {relation}.",
+    "{relation} in the current camera-centered frame."
   ],
   "relative_3d_position.choice": [
     "{relation}",
@@ -116,21 +166,33 @@
     "The best matching 3D relation is {relation}.",
     "From the current camera viewpoint, the correct choice is {relation}.",
     "In the camera-centered frame, the best option is {relation}.",
-    "Relative to the other object in camera space, {relation} is the correct choice."
+    "Relative to the other object in camera space, {relation} is the correct choice.",
+    "Answer: {relation}.",
+    "Choose {relation}.",
+    "{relation} is the best option here."
   ],
   "seam_continuity.choice": [
     "{answer}",
     "The best interpretation is {answer}.",
-    "The correct choice is {answer}."
+    "The correct choice is {answer}.",
+    "Answer: {answer}.",
+    "A seam-aware interpretation is {answer}.",
+    "Treat it as {answer}."
   ],
   "polar_distortion_awareness.shape": [
     "{shape}",
     "Its true shape is {shape}.",
-    "The object should be recognized as {shape} in shape."
+    "The object should be recognized as {shape} in shape.",
+    "Answer: {shape}.",
+    "Its real geometry is {shape}.",
+    "The true shape label is {shape}."
   ],
   "polar_distortion_awareness.candidate": [
     "{candidate}",
     "The best-matching candidate is {candidate}.",
-    "The correct match is {candidate}."
+    "The correct match is {candidate}.",
+    "Answer: {candidate}.",
+    "Choose {candidate}.",
+    "{candidate} is the best geometry match."
   ]
 }

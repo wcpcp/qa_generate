@@ -6,7 +6,10 @@
     "What category does the object described as {entity_hint} belong to?",
     "Name the object that fits this description: {entity_hint}.",
     "What is the object characterized as {entity_hint}?",
-    "Which object best matches the following visual description: {entity_hint}?"
+    "Which object best matches the following visual description: {entity_hint}?",
+    "Answer with the object category that best matches: {entity_hint}.",
+    "Give the name of the object described by {entity_hint}.",
+    "In one short phrase, identify the object matching {entity_hint}."
   ],
   "caption.attribute": [
     "What is the {attribute_name} of {entity_hint}?",
@@ -15,7 +18,10 @@
     "How would you describe the {attribute_name} of {entity_hint}?",
     "What is the visible {attribute_name} of {entity_hint}?",
     "For the object described as {entity_hint}, what is its {attribute_name}?",
-    "What {attribute_name} does {entity_hint} have?"
+    "What {attribute_name} does {entity_hint} have?",
+    "Answer with the visible {attribute_name} of {entity_hint}.",
+    "State the observed {attribute_name} for {entity_hint}.",
+    "Give a short answer for the {attribute_name} of {entity_hint}."
   ],
   "caption.description": [
     "Give one concise caption for {entity_hint}.",
@@ -24,7 +30,10 @@
     "Briefly describe {entity_hint}.",
     "How would you briefly describe {entity_hint}?",
     "Write a compact caption for the object described as {entity_hint}.",
-    "Give a brief visual description of the object characterized as {entity_hint}."
+    "Give a brief visual description of the object characterized as {entity_hint}.",
+    "Provide one short object caption for {entity_hint}.",
+    "Summarize {entity_hint} in one concise sentence.",
+    "Answer with a compact visual description of {entity_hint}."
   ],
   "caption.dense_description": [
     "Describe {entity_hint} in detail.",
@@ -35,52 +44,76 @@
     "Write a detailed caption for the object described as {entity_hint}.",
     "Describe the appearance and notable details of {entity_hint}.",
     "Give a fuller object description for {entity_hint}.",
-    "Please provide a detailed object-level caption for {entity_hint}."
+    "Please provide a detailed object-level caption for {entity_hint}.",
+    "Write two or three detailed sentences about {entity_hint}.",
+    "Provide a detailed object description for {entity_hint}, including notable visual properties.",
+    "Give a richer object-focused caption for {entity_hint}."
   ],
   "existence": [
     "Is there any {category_name} anywhere in this ERP panorama?",
     "Does the full 360 scene contain a {category_name}?",
-    "Can you find at least one {category_name} in the panorama?"
+    "Can you find at least one {category_name} in the panorama?",
+    "Answer yes or no: is any {category_name} visible in the full panorama?",
+    "In the complete ERP scene, is a {category_name} present?",
+    "Respond with yes or no: does this panorama include a {category_name}?"
   ],
   "counting": [
     "How many {category_name} are visible in the full ERP panorama?",
     "Count the number of {category_name} across the 360 scene.",
-    "In this panorama, how many {category_name} can be found?"
+    "In this panorama, how many {category_name} can be found?",
+    "Answer with the total number of visible {category_name} in the ERP scene.",
+    "Give the seam-aware count of {category_name} across the whole panorama.",
+    "How many {category_name} can be identified in the complete 360 view?"
   ],
   "grounding.full": [
     "Locate {entity_ref} in the panorama using a normalized box and BFOV [yaw, pitch, x_fov, y_fov].",
     "Give the 0-1000 ERP box and BFOV of {entity_ref}.",
     "Where is {entity_ref} in the panorama? Return its normalized box and BFOV.",
     "Return the normalized 0-1000 bounding box and BFOV for {entity_ref}.",
-    "Mark the location of {entity_ref} with a normalized ERP box and BFOV."
+    "Mark the location of {entity_ref} with a normalized ERP box and BFOV.",
+    "Output the normalized box and BFOV that localize {entity_ref}.",
+    "Provide a full ERP localization for {entity_ref}: normalized box plus BFOV.",
+    "Answer with the 0-1000 box and BFOV of {entity_ref}."
   ],
   "grounding.bbox_only": [
     "Return only the normalized 0-1000 bounding box of {entity_ref}.",
     "Provide only the normalized ERP bounding box for {entity_ref}.",
     "Which normalized 0-1000 box encloses {entity_ref} in the panorama?",
     "Give just the normalized box coordinates for {entity_ref}.",
-    "Mark {entity_ref} using only a normalized ERP box."
+    "Mark {entity_ref} using only a normalized ERP box.",
+    "Answer with only the 0-1000 bounding box for {entity_ref}.",
+    "Provide the ERP box coordinates of {entity_ref} and nothing else.",
+    "Which normalized box best localizes {entity_ref}?"
   ],
   "grounding.angles_only": [
     "Return only the BFOV [yaw, pitch, x_fov, y_fov] of {entity_ref}.",
     "Report only the precise BFOV of {entity_ref}.",
     "Give the exact BFOV of {entity_ref} in the ERP image.",
     "What is the BFOV of {entity_ref}?",
-    "Provide only the angular BFOV location of {entity_ref}."
+    "Provide only the angular BFOV location of {entity_ref}.",
+    "Answer with the BFOV of {entity_ref} and no extra explanation.",
+    "Which BFOV best localizes {entity_ref} in the ERP panorama?",
+    "Give the angular footprint of {entity_ref} as BFOV."
   ],
   "direct_direction.precise": [
     "What is the exact BFOV [yaw, pitch, x_fov, y_fov] of {entity_ref} in the ERP image?",
     "Give the panorama BFOV of {entity_ref}.",
     "At which exact BFOV is {entity_ref} located in the ERP image?",
     "Report the precise BFOV of {entity_ref} in the ERP panorama.",
-    "What are the BFOV parameters of {entity_ref}?"
+    "What are the BFOV parameters of {entity_ref}?",
+    "Answer with the exact ERP BFOV for {entity_ref}.",
+    "Provide the angular location of {entity_ref} as BFOV only.",
+    "State the full BFOV coordinates of {entity_ref}."
   ],
   "direct_direction.cardinal": [
     "Which 8-way panorama direction does {entity_ref} lie in relative to the observer?",
     "Is {entity_ref} mainly front, front-right, right, back-right, back, back-left, left, or front-left?",
     "What coarse panorama sector contains {entity_ref}?",
     "Which coarse 8-way direction best matches the position of {entity_ref}?",
-    "In broad panorama terms, where is {entity_ref} located around the observer?"
+    "In broad panorama terms, where is {entity_ref} located around the observer?",
+    "Answer with one 8-way panorama sector for {entity_ref}.",
+    "Which absolute 360 direction label best fits {entity_ref}?",
+    "Give the coarse observer-centered direction of {entity_ref}."
   ],
   "relative_direction": [
     "On the 360 panorama ring, where is {target_ref} relative to {reference_ref}: right, back-right, opposite, back-left, or left?",
@@ -90,28 +123,40 @@
     "Which panoramic angular relation best describes {target_ref} with respect to {reference_ref}?",
     "On the ERP horizontal ring around the observer, where is {target_ref} compared with {reference_ref}?",
     "Using {reference_ref} as the reference target on the panorama ring, which side-sector best matches {target_ref}?",
-    "How is {target_ref} distributed around the 360 panorama ring relative to {reference_ref}?"
+    "How is {target_ref} distributed around the 360 panorama ring relative to {reference_ref}?",
+    "Answer with one panoramic ring label describing {target_ref} relative to {reference_ref}.",
+    "Give the 360-ring relation of {target_ref} with respect to {reference_ref}.",
+    "Using the panorama ring only, classify where {target_ref} falls relative to {reference_ref}."
   ],
   "view_transform.camera_rotation_transform": [
     "If you rotate your view by {turn_angle_deg}° to the {rotation_direction}, where would {entity_ref} appear: right, back-right, behind, back-left, or left?",
     "After turning {turn_angle_deg}° to the {rotation_direction}, where is {entity_ref} in the reoriented view?",
     "Suppose the observer rotates {turn_angle_deg}° to the {rotation_direction}. Which direction best matches {entity_ref}: right, back-right, behind, back-left, or left?",
     "Once the viewing direction is rotated {turn_angle_deg}° to the {rotation_direction}, where should {entity_ref} appear?",
-    "In the new view after a {turn_angle_deg}° {rotation_direction} turn, is {entity_ref} on the right, back-right, behind, back-left, or left?"
+    "In the new view after a {turn_angle_deg}° {rotation_direction} turn, is {entity_ref} on the right, back-right, behind, back-left, or left?",
+    "After the observer turns {turn_angle_deg}° to the {rotation_direction}, answer with the new direction label of {entity_ref}.",
+    "Give the reoriented-view direction of {entity_ref} after a {turn_angle_deg}° turn to the {rotation_direction}.",
+    "Using the updated viewpoint, classify the position of {entity_ref} with one label."
   ],
   "view_transform.object_conditioned_reorientation": [
     "If you turn to face {facing_ref}, where would {target_ref} appear: right, back-right, behind, back-left, or left?",
     "After reorienting so that {facing_ref} becomes straight ahead, where is {target_ref} in the new view?",
     "Use {facing_ref} as the new forward direction. Where does {target_ref} lie: right, back-right, behind, back-left, or left?",
     "If {facing_ref} is treated as the new front of the panorama, where would {target_ref} appear?",
-    "Once you face {facing_ref}, is {target_ref} to your right, back-right, behind, back-left, or left?"
+    "Once you face {facing_ref}, is {target_ref} to your right, back-right, behind, back-left, or left?",
+    "Answer with one reoriented-view direction for {target_ref} after facing {facing_ref}.",
+    "If {facing_ref} becomes the new forward anchor, classify the direction of {target_ref}.",
+    "Give the new-view direction label of {target_ref} once {facing_ref} is centered."
   ],
   "distance_estimation": [
     "What is the estimated center depth of the {target_label} in meters?",
     "Give the absolute depth of {entity_ref} in meters.",
     "How far is the {target_label} from the observer? Return the distance in meters.",
     "Estimate the distance from the observer to {entity_ref} in meters.",
-    "What is the approximate metric distance to {entity_ref}?"
+    "What is the approximate metric distance to {entity_ref}?",
+    "Answer with the estimated distance to {entity_ref} in meters.",
+    "Provide one metric distance estimate for the {target_label}.",
+    "Give a short meter estimate for how far {entity_ref} is from the camera."
   ],
   "distance_estimation.choice": [
     "Measuring 3D center distance, which of these objects ({candidate_list}) is closest to the {reference_label} in this panorama?",
@@ -122,14 +167,20 @@
     "If distance is measured from object center to object center, which candidate is closest to the {reference_label}: {candidate_list}?",
     "Which of the following objects is the nearest neighbor of the {reference_label} in center-based 3D distance: {candidate_list}?",
     "Among the candidates {candidate_list}, which one is nearest to the {reference_label}?",
-    "Which option is closest to the {reference_label} when comparing 3D center distances: {candidate_list}?"
+    "Which option is closest to the {reference_label} when comparing 3D center distances: {candidate_list}?",
+    "Answer with the single nearest candidate to the {reference_label}: {candidate_list}.",
+    "Select the one candidate that is closest to the {reference_label} in 3D center distance: {candidate_list}.",
+    "Give only the nearest candidate label for the {reference_label}: {candidate_list}."
   ],
   "distance_estimation.observer_choice": [
     "Which of these objects ({candidate_list}) is closest to the observer in this panorama?",
     "Among {candidate_list}, which object is nearest to the camera center?",
     "Which candidate appears closest to the viewer: {candidate_list}?",
     "Using object depth as the metric, which option is nearest to the observer: {candidate_list}?",
-    "Which listed object is closest to the camera in this ERP scene: {candidate_list}?"
+    "Which listed object is closest to the camera in this ERP scene: {candidate_list}?",
+    "Answer with the single object nearest to the observer: {candidate_list}.",
+    "Choose the object with the smallest observer distance from: {candidate_list}.",
+    "Give only the closest listed object to the current viewpoint: {candidate_list}."
   ],
   "relative_3d_position.open": [
     "From the current camera viewpoint, what is the 3D relation of {entity_a} relative to {entity_b}?",
@@ -140,14 +191,20 @@
     "Which description best matches the camera-centered 3D position of {entity_a} relative to {entity_b}?",
     "In the current camera-centered scene geometry, where would you place {entity_a} compared with {entity_b}?",
     "From the camera viewpoint, is {entity_a} left of, right of, above, below, in front of, or behind {entity_b}?",
-    "Which standard camera-centered 3D relation best matches {entity_a} relative to {entity_b}?"
+    "Which standard camera-centered 3D relation best matches {entity_a} relative to {entity_b}?",
+    "Answer with the camera-centered 3D relation of {entity_a} relative to {entity_b}.",
+    "Give one short camera-viewpoint relation describing {entity_a} compared with {entity_b}.",
+    "Provide the best current-view 3D relation between {entity_a} and {entity_b}."
   ],
   "relative_3d_position.choice": [
     "Which option best describes the camera-centered 3D position of {entity_a} relative to {entity_b}: {choice_list}?",
     "Choose the best 3D relation for {entity_a} relative to {entity_b} from the current camera view: {choice_list}.",
     "Among the following 3D relations, which one matches {entity_a} compared with {entity_b} in camera space: {choice_list}?",
     "Select the most accurate camera-centered 3D relation of {entity_a} with respect to {entity_b}: {choice_list}.",
-    "Which listed relation best fits {entity_a} relative to {entity_b} in the current camera-centered scene: {choice_list}?"
+    "Which listed relation best fits {entity_a} relative to {entity_b} in the current camera-centered scene: {choice_list}?",
+    "Answer with the best choice for the current-view 3D relation: {choice_list}.",
+    "Pick one relation that best matches {entity_a} relative to {entity_b}: {choice_list}.",
+    "Give the single best camera-centered 3D label from: {choice_list}."
   ],
   "seam_continuity.nearest_neighbor": [
     "Which listed object is actually nearest to {target_ref} near the {target_side} image edge: {choice_list}?",
@@ -189,12 +246,16 @@
   "polar_distortion_awareness.shape_matching": [
     "Which listed candidate best matches the real geometry of the high-latitude {target_label} at {target_locator}: {choice_list}?",
     "Name the candidate whose geometry best matches the high-latitude {target_label} at {target_locator}. Candidates: {choice_list}.",
-    "From the following candidates, which one best matches the true shape of the {target_label} at {target_locator}: {choice_list}?"
+    "From the following candidates, which one best matches the true shape of the {target_label} at {target_locator}: {choice_list}?",
+    "Answer with the candidate that best preserves the real geometry of the {target_label} at {target_locator}: {choice_list}.",
+    "Select the geometry-matching candidate for the high-latitude {target_label} at {target_locator}: {choice_list}."
   ],
   "polar_distortion_awareness.cross_latitude_matching": [
     "Which listed object best matches the real geometry of the high-latitude {target_label} at {target_locator}: {choice_list}?",
     "Ignoring ERP distortion, which candidate most plausibly shares the true geometry of the high-latitude {target_label} at {target_locator}: {choice_list}?",
-    "Choose the low-latitude object whose geometry best matches the distorted high-latitude {target_label} at {target_locator}: {choice_list}."
+    "Choose the low-latitude object whose geometry best matches the distorted high-latitude {target_label} at {target_locator}: {choice_list}.",
+    "Answer with the candidate whose real geometry best matches the high-latitude {target_label} at {target_locator}: {choice_list}.",
+    "From the listed candidates, identify the low-latitude object that matches the true shape of the {target_label} at {target_locator}: {choice_list}."
   ],
   "polar_distortion_awareness.size": [],
   "polar_distortion_awareness.volume": []

@@ -804,6 +804,10 @@ def _deterministic_prompt(
         if allow_reasoning
         else "Prefer a direct concise answer.\n"
     )
+    style_rule = (
+        "Vary the surface form when natural: a bare label, a short phrase, or a concise sentence are all acceptable.\n"
+        "Do not default to repetitive prefixes such as 'The correct answer is' unless the question is explicitly option-based.\n"
+    )
     return (
         f"You are rewriting a deterministic ERP {task_name} QA sample.\n\n"
         f"Structured facts:\n{facts_json}\n\n"
@@ -812,6 +816,7 @@ def _deterministic_prompt(
         "Rules:\n"
         f"- {extra_rule}\n"
         f"- {reasoning_rule}"
+        f"- {style_rule}"
         "- Do not invent new entities, new relations, or new numbers.\n"
         "- Put any short rationale directly into full_answer instead of a separate notes field.\n"
         "Return JSON with keys question and full_answer.\n"
