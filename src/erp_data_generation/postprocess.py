@@ -256,7 +256,8 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
                 {
                     "reference_label": metadata.get("reference_label"),
                     "reference_ref": metadata.get("reference_ref"),
-                    "candidate_objects": _candidate_ref_list(metadata.get("candidate_labels", []), metadata.get("candidate_refs", {})),
+                    "candidate_objects": metadata.get("candidate_objects")
+                    or _candidate_ref_list(metadata.get("candidate_labels", []), metadata.get("candidate_refs", {})),
                     "distance_measure": metadata.get("distance_measure"),
                     "candidate_distances_m": metadata.get("candidate_distances_m"),
                     "nearest_candidate": sample["canonical_answer"],
@@ -266,7 +267,8 @@ def _postprocess_facts(scene: SceneMetadata, sample: Dict[str, Any], entities: L
             facts.update(
                 {
                     "reference_label": "observer",
-                    "candidate_objects": _candidate_ref_list(metadata.get("candidate_labels", []), metadata.get("candidate_refs", {})),
+                    "candidate_objects": metadata.get("candidate_objects")
+                    or _candidate_ref_list(metadata.get("candidate_labels", []), metadata.get("candidate_refs", {})),
                     "distance_measure": metadata.get("distance_measure"),
                     "candidate_depths_m": metadata.get("candidate_depths_m"),
                     "nearest_candidate": sample["canonical_answer"],
@@ -376,6 +378,7 @@ def _candidate_ref_list(candidate_labels: List[str], candidate_refs: Dict[str, s
         {
             "label": label,
             "entity_ref": candidate_refs.get(label, label),
+            "display_text": candidate_refs.get(label, label),
         }
         for label in candidate_labels
     ]
@@ -806,6 +809,7 @@ def _deterministic_prompt(
     )
     style_rule = (
         "Vary the surface form when natural: a bare label, a short phrase, or a concise sentence are all acceptable.\n"
+        "For option-based questions, the answer may be only the chosen option text, a short selection phrase, or a concise sentence; do not force one single response pattern.\n"
         "Do not default to repetitive prefixes such as 'The correct answer is' unless the question is explicitly option-based.\n"
     )
     return (

@@ -444,31 +444,47 @@ def _realize_distance_estimation(
         ]
         candidate_distances.sort(key=lambda item: item[0])
         answer_entity = candidate_distances[0][1]
+        candidate_objects = [
+            _choice_entity_payload(scene, candidate, f"{template_seed}:{candidate.entity_id}")
+            for candidate in candidates
+        ]
+        candidate_objects = _finalize_choice_payloads(candidate_objects)
+        candidate_objects = _balance_choice_objects(
+            candidate_objects,
+            answer_entity.entity_id,
+            f"{template_seed}:distance_choice",
+        )
         template_key = "distance_estimation.choice"
         template, index = _pick_template(templates, template_key, template_seed)
-        candidate_list = ", ".join(_display_label(candidate.label) for candidate in candidates)
+        candidate_list = ", ".join(item["display_text"] for item in candidate_objects)
+        answer_display = next(
+            item["display_text"] for item in candidate_objects if item["entity_id"] == answer_entity.entity_id
+        )
         question = template.format(
-            reference_label=_display_label(reference.label),
+            reference_label=_grounding_ref(reference),
             candidate_list=candidate_list,
         )
         metadata = {
             "reference_label": reference.label,
             "reference_ref": _grounding_ref(reference),
-            "candidate_labels": [candidate.label for candidate in candidates],
-            "candidate_refs": {candidate.label: _grounding_ref(candidate) for candidate in candidates},
+            "candidate_objects": candidate_objects,
+            "choice_candidates": [item["display_text"] for item in candidate_objects],
             "distance_measure": "center_to_center_3d_distance",
             "candidate_distances_m": {
-                candidate.label: round(distance, 3)
-                for distance, candidate in candidate_distances
+                item["display_text"]: round(
+                    next(distance for distance, candidate in candidate_distances if candidate.entity_id == item["entity_id"]),
+                    3,
+                )
+                for item in candidate_objects
             },
         }
         answer_text = _pick_answer_template(
             answer_templates,
             "distance_estimation.choice",
             template_seed,
-            label=_display_label(answer_entity.label),
+            label=answer_display,
         )
-        return question, answer_entity.label, answer_text, metadata, None, template_key, index
+        return question, answer_display, answer_text, metadata, None, template_key, index
 
     if generation_mode == "observer_nearest_choice":
         candidates = [
@@ -480,27 +496,43 @@ def _realize_distance_estimation(
             key=lambda item: item[0],
         )
         answer_entity = candidate_depths[0][1]
+        candidate_objects = [
+            _choice_entity_payload(scene, candidate, f"{template_seed}:{candidate.entity_id}")
+            for _, candidate in candidate_depths
+        ]
+        candidate_objects = _finalize_choice_payloads(candidate_objects)
+        candidate_objects = _balance_choice_objects(
+            candidate_objects,
+            answer_entity.entity_id,
+            f"{template_seed}:observer_choice",
+        )
         template_key = "distance_estimation.observer_choice"
         template, index = _pick_template(templates, template_key, template_seed)
-        candidate_list = ", ".join(_display_label(candidate.label) for _, candidate in candidate_depths)
+        candidate_list = ", ".join(item["display_text"] for item in candidate_objects)
+        answer_display = next(
+            item["display_text"] for item in candidate_objects if item["entity_id"] == answer_entity.entity_id
+        )
         question = template.format(candidate_list=candidate_list)
         metadata = {
             "reference_label": "observer",
-            "candidate_labels": [candidate.label for _, candidate in candidate_depths],
-            "candidate_refs": {candidate.label: _grounding_ref(candidate) for _, candidate in candidate_depths},
+            "candidate_objects": candidate_objects,
+            "choice_candidates": [item["display_text"] for item in candidate_objects],
             "distance_measure": "depth_to_camera_center",
             "candidate_depths_m": {
-                candidate.label: round(depth, 3)
-                for depth, candidate in candidate_depths
+                item["display_text"]: round(
+                    next(depth for depth, candidate in candidate_depths if candidate.entity_id == item["entity_id"]),
+                    3,
+                )
+                for item in candidate_objects
             },
         }
         answer_text = _pick_answer_template(
             answer_templates,
             "distance_estimation.observer_choice",
             template_seed,
-            label=_display_label(answer_entity.label),
+            label=answer_display,
         )
-        return question, answer_entity.label, answer_text, metadata, None, template_key, index
+        return question, answer_display, answer_text, metadata, None, template_key, index
 
     entity = entities[0]
     depth_m = round(float(entity.entity_center_depth), 2)
@@ -528,7 +560,7 @@ def _realize_relative_3d_position(
     if generation_mode == "camera_centric_choice":
         template_key = "relative_3d_position.choice"
         template, index = _pick_template(templates, template_key, template_seed)
-        choices = _build_relative_3d_choices(entity_a, entity_b, answer)
+        choices = _build_relative_3d_choices(entity_a, entity_b, answer, template_seed)
         metadata["relative_3d_mode"] = "camera_centric_choice"
         metadata["choice_candidates"] = choices
         question = template.format(
@@ -592,10 +624,15 @@ def _realize_polar_distortion_awareness(
         descriptor_by_id = {
             item.entity_id: desc for item, desc in zip(choice_entities, candidate_descriptions)
         }
+        ordered_candidates = _balance_choice_strings(
+            candidate_descriptions,
+            descriptor_by_id[correct_entity.entity_id],
+            f"{template_seed}:{mode}",
+        )
         answer = descriptor_by_id[correct_entity.entity_id]
         metadata.update(
             {
-                "choice_candidates": candidate_descriptions,
+                "choice_candidates": ordered_candidates,
                 "candidate_entity_ids": [item.entity_id for item in choice_entities],
                 "correct_candidate": answer,
             }
@@ -603,7 +640,7 @@ def _realize_polar_distortion_awareness(
         question = template.format(
             target_label=target_label,
             target_locator=target_locator,
-            choice_list=", ".join(candidate_descriptions),
+            choice_list=", ".join(ordered_candidates),
         )
         answer_text = _pick_answer_template(
             answer_templates,
@@ -651,7 +688,11 @@ def _realize_seam_continuity(
         correct_entity = entity_by_id.get(str(task.get("seam_partner_id", "")))
         if correct_entity is None or len(choice_entities) < 3:
             return "", None, "", {}, None, "", 0
-        choice_refs = [_grounding_ref(item) for item in choice_entities]
+        choice_refs = _balance_choice_strings(
+            [_grounding_ref(item) for item in choice_entities],
+            _grounding_ref(correct_entity),
+            f"{template_seed}:seam_nearest_neighbor",
+        )
         answer = _grounding_ref(correct_entity)
         metadata.update(
             {
@@ -676,6 +717,7 @@ def _realize_seam_continuity(
             "roughly opposite in the panorama",
             "not actually seam-adjacent",
         ]
+        choices = _balance_choice_strings(choices, relation, f"{template_seed}:seam_relative_direction")
         metadata.update(
             {
                 "neighbor_ref": _grounding_ref(partner),
@@ -699,6 +741,7 @@ def _realize_seam_continuity(
             "cannot determine from the panorama",
         ]
         answer = "one continuous object"
+        choices = _balance_choice_strings(choices, answer, f"{template_seed}:seam_dedup_count")
         metadata["choice_candidates"] = choices
         question = template.format(target_ref=target_ref, choice_list=", ".join(choices))
         answer_text = _pick_answer_template(answer_templates, "seam_continuity.choice", template_seed, answer=answer)
@@ -713,6 +756,7 @@ def _realize_seam_continuity(
             "a local fragment that should terminate at the edge",
         ]
         answer = choices[0]
+        choices = _balance_choice_strings(choices, answer, f"{template_seed}:seam_structure_continuity")
         metadata["choice_candidates"] = choices
         question = template.format(target_ref=target_ref, choice_list=", ".join(choices))
         answer_text = _pick_answer_template(answer_templates, "seam_continuity.choice", template_seed, answer=answer)
@@ -725,6 +769,7 @@ def _realize_seam_continuity(
         "cannot determine from the panorama",
     ]
     answer = choices[0]
+    choices = _balance_choice_strings(choices, answer, f"{template_seed}:seam_same_entity")
     metadata["choice_candidates"] = choices
     question = template.format(target_ref=target_ref, choice_list=", ".join(choices))
     answer_text = _pick_answer_template(answer_templates, "seam_continuity.choice", template_seed, answer=answer)
@@ -899,6 +944,85 @@ def _grounding_ref(entity: Entity) -> str:
     return entity.semantic.reground_query or f"the {_display_label(entity.label)}"
 
 
+def _choice_entity_payload(scene: SceneMetadata, entity: Entity, seed: str) -> Dict[str, Any]:
+    digest = hashlib.md5(f"{seed}:choice_locator".encode("utf-8")).hexdigest()
+    locator_mode = "bbox_norm_1000" if int(digest[:8], 16) % 2 == 0 else "bfov"
+    locator = (
+        f"box {_bbox_text(_normalized_bbox_1000(scene, entity))}"
+        if locator_mode == "bbox_norm_1000"
+        else f"BFOV {_bfov_text(_entity_bfov(scene, entity))}"
+    )
+    entity_ref = _grounding_ref(entity)
+    return {
+        "entity_id": entity.entity_id,
+        "label": entity.label,
+        "entity_ref": entity_ref,
+        "locator_mode": locator_mode,
+        "locator": locator,
+        "display_text": entity_ref,
+    }
+
+
+def _finalize_choice_payloads(payloads: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    duplicate_counts: Dict[str, int] = defaultdict(int)
+    for payload in payloads:
+        duplicate_counts[_normalize_phrase(payload["display_text"])] += 1
+
+    finalized: List[Dict[str, Any]] = []
+    for payload in payloads:
+        item = dict(payload)
+        if duplicate_counts[_normalize_phrase(item["display_text"])] > 1:
+            item["display_text"] = f"{item['entity_ref']} at {item['locator']}"
+        finalized.append(item)
+    return finalized
+
+
+def _balance_choice_objects(payloads: Sequence[Dict[str, Any]], correct_entity_id: str, seed: str) -> List[Dict[str, Any]]:
+    unique: List[Dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for payload in payloads:
+        entity_id = str(payload.get("entity_id"))
+        if not entity_id or entity_id in seen_ids:
+            continue
+        unique.append(dict(payload))
+        seen_ids.add(entity_id)
+    if not unique:
+        return []
+
+    correct = next((item for item in unique if str(item.get("entity_id")) == str(correct_entity_id)), None)
+    if correct is None:
+        return unique
+
+    distractors = [item for item in unique if str(item.get("entity_id")) != str(correct_entity_id)]
+    distractors.sort(
+        key=lambda item: hashlib.md5(f"{seed}:{item.get('entity_id')}:{item.get('display_text')}".encode("utf-8")).hexdigest()
+    )
+    target_index = int(hashlib.md5(f"{seed}:choice_position".encode("utf-8")).hexdigest()[:8], 16) % len(unique)
+    balanced = list(distractors)
+    balanced.insert(target_index, correct)
+    return balanced
+
+
+def _balance_choice_strings(options: Sequence[str], correct_option: str, seed: str) -> List[str]:
+    unique: List[str] = []
+    seen: set[str] = set()
+    for option in options:
+        if option not in seen:
+            unique.append(option)
+            seen.add(option)
+    if not unique:
+        return []
+    if correct_option not in seen:
+        unique.insert(0, correct_option)
+
+    distractors = [item for item in unique if item != correct_option]
+    distractors.sort(key=lambda item: hashlib.md5(f"{seed}:{item}".encode("utf-8")).hexdigest())
+    target_index = int(hashlib.md5(f"{seed}:choice_position".encode("utf-8")).hexdigest()[:8], 16) % len(unique)
+    balanced = list(distractors)
+    balanced.insert(target_index, correct_option)
+    return balanced
+
+
 def _entity_hint(
     entity: Entity,
     *,
@@ -1067,11 +1191,15 @@ def _relative_3d_relation(entity_a: Entity, entity_b: Entity) -> str:
     return f"{relations[0]}, {relations[1]}, and {relations[2]}"
 
 
-def _build_relative_3d_choices(entity_a: Entity, entity_b: Entity, answer: str) -> List[str]:
+def _build_relative_3d_choices(entity_a: Entity, entity_b: Entity, answer: str, template_seed: str) -> List[str]:
     xyz_a = entity_a.erp_consistent_xyz_camera
     xyz_b = entity_b.erp_consistent_xyz_camera
     if xyz_a is None or xyz_b is None:
-        return [answer, "left of", "right of", "in front of"]
+        return _balance_choice_strings(
+            [answer, "left of", "right of", "in front of"],
+            answer,
+            f"{template_seed}:relative_3d_fallback",
+        )
 
     dx = float(xyz_a[0]) - float(xyz_b[0])
     dy = float(xyz_a[1]) - float(xyz_b[1])
@@ -1111,7 +1239,7 @@ def _build_relative_3d_choices(entity_a: Entity, entity_b: Entity, answer: str) 
             choices.append(item)
         if len(choices) >= 4:
             break
-    return choices[:4]
+    return _balance_choice_strings(choices[:4], answer, f"{template_seed}:relative_3d_choice")
 
 
 def _join_relations(relations: Sequence[str]) -> str:

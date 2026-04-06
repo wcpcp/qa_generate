@@ -13,7 +13,7 @@ import sys
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from erp_data_generation.builders import build_canonical_samples
+from erp_data_generation.builders import _balance_choice_strings, build_canonical_samples
 from erp_data_generation.orchestrator import build_corpus_bundle, build_scene_bundle
 from erp_data_generation.pipeline import build_scene_plan, load_scene_metadata
 from erp_data_generation.postprocess import build_postprocess_jobs
@@ -167,6 +167,39 @@ class FrameworkTestCase(unittest.TestCase):
             self.assertTrue(metadata.get("target_locator"))
             if sample.get("generation_mode") in {"shape_matching", "cross_latitude_matching"}:
                 self.assertGreaterEqual(len(metadata.get("choice_candidates", [])), 4)
+
+    def test_choice_balancing_moves_correct_option(self) -> None:
+        positions = {
+            _balance_choice_strings(["correct", "a", "b", "c"], "correct", f"seed-{idx}").index("correct")
+            for idx in range(12)
+        }
+        self.assertGreater(len(positions), 1)
+
+    def test_distance_choice_uses_disambiguated_candidate_objects(self) -> None:
+        scene = self.scene
+        samples = self.samples
+        if REAL_SCENE.exists():
+            scene = load_scene_metadata(str(REAL_SCENE))
+            plan = build_scene_plan(scene)
+            samples = build_canonical_samples(scene, plan)
+        choice_sample = next(
+            (
+                sample
+                for sample in samples
+                if sample["task_family"] == "distance_estimation"
+                and sample.get("generation_mode") in {"candidate_nearest_choice", "observer_nearest_choice"}
+            ),
+            None,
+        )
+        if choice_sample is None:
+            self.skipTest("No distance choice sample available in the current test metadata.")
+        metadata = choice_sample.get("metadata", {})
+        candidate_objects = metadata.get("candidate_objects", [])
+        self.assertTrue(candidate_objects)
+        self.assertEqual(len(candidate_objects), len(metadata.get("choice_candidates", [])))
+        self.assertIn(choice_sample["canonical_answer"], metadata.get("choice_candidates", []))
+        display_texts = [item.get("display_text") for item in candidate_objects]
+        self.assertEqual(len(display_texts), len(set(display_texts)))
 
 
 if __name__ == "__main__":

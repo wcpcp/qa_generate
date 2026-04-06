@@ -147,3 +147,9 @@
 2. 让 `counting` 的视觉 prompt 更稳
 3. 持续优化按任务拆分的后处理 prompt
 4. 把少量高质量 LLM 输出持续回流成模板
+
+## 任务模板汇总
+
+当前活跃任务、generation mode、question / answer 模板族、LLM 重包装模式，以及 choice 均衡与歧义控制说明，统一整理在：
+
+- [task_template_matrix.md](/Users/wcp/code/qa_generate/docs/task_template_matrix.md)

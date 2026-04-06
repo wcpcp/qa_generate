@@ -170,7 +170,9 @@
     "Which option is closest to the {reference_label} when comparing 3D center distances: {candidate_list}?",
     "Answer with the single nearest candidate to the {reference_label}: {candidate_list}.",
     "Select the one candidate that is closest to the {reference_label} in 3D center distance: {candidate_list}.",
-    "Give only the nearest candidate label for the {reference_label}: {candidate_list}."
+    "Give only the nearest candidate label for the {reference_label}: {candidate_list}.",
+    "Which listed object should be selected as the nearest 3D neighbor of {reference_label}? Candidates: {candidate_list}.",
+    "Return only the candidate whose object center is closest to {reference_label}: {candidate_list}."
   ],
   "distance_estimation.observer_choice": [
     "Which of these objects ({candidate_list}) is closest to the observer in this panorama?",
@@ -180,7 +182,9 @@
     "Which listed object is closest to the camera in this ERP scene: {candidate_list}?",
     "Answer with the single object nearest to the observer: {candidate_list}.",
     "Choose the object with the smallest observer distance from: {candidate_list}.",
-    "Give only the closest listed object to the current viewpoint: {candidate_list}."
+    "Give only the closest listed object to the current viewpoint: {candidate_list}.",
+    "From the current observer position, which listed object is nearest: {candidate_list}?",
+    "Return only the one object with the smallest camera-centered depth: {candidate_list}."
   ],
   "relative_3d_position.open": [
     "From the current camera viewpoint, what is the 3D relation of {entity_a} relative to {entity_b}?",
@@ -194,7 +198,9 @@
     "Which standard camera-centered 3D relation best matches {entity_a} relative to {entity_b}?",
     "Answer with the camera-centered 3D relation of {entity_a} relative to {entity_b}.",
     "Give one short camera-viewpoint relation describing {entity_a} compared with {entity_b}.",
-    "Provide the best current-view 3D relation between {entity_a} and {entity_b}."
+    "Provide the best current-view 3D relation between {entity_a} and {entity_b}.",
+    "Using the current camera frame only, how should {entity_a} be located relative to {entity_b}?",
+    "State the most accurate current-view 3D relation for {entity_a} with respect to {entity_b}."
   ],
   "relative_3d_position.choice": [
     "Which option best describes the camera-centered 3D position of {entity_a} relative to {entity_b}: {choice_list}?",
@@ -204,17 +210,21 @@
     "Which listed relation best fits {entity_a} relative to {entity_b} in the current camera-centered scene: {choice_list}?",
     "Answer with the best choice for the current-view 3D relation: {choice_list}.",
     "Pick one relation that best matches {entity_a} relative to {entity_b}: {choice_list}.",
-    "Give the single best camera-centered 3D label from: {choice_list}."
+    "Give the single best camera-centered 3D label from: {choice_list}.",
+    "Which one of these current-view 3D descriptions best matches {entity_a} relative to {entity_b}: {choice_list}?",
+    "Choose the most accurate relation in the camera frame for {entity_a} versus {entity_b}: {choice_list}."
   ],
   "seam_continuity.nearest_neighbor": [
     "Which listed object is actually nearest to {target_ref} near the {target_side} image edge: {choice_list}?",
     "For the {target_ref} close to the {target_side} image boundary, which candidate is truly the nearest neighbor: {choice_list}?",
-    "Identify the seam-aware nearest neighbor of {target_ref} near the {target_side} boundary from: {choice_list}."
+    "Identify the seam-aware nearest neighbor of {target_ref} near the {target_side} boundary from: {choice_list}.",
+    "If the panorama wraps continuously across the left-right seam, which listed object is nearest to {target_ref}: {choice_list}?"
   ],
   "seam_continuity.relative_direction": [
     "What is the relation of {neighbor_ref} relative to {target_ref} across the left-right image boundary: {choice_list}?",
     "Across the image seam, how should {neighbor_ref} be described relative to {target_ref}: {choice_list}?",
-    "Describe the seam-aware direction of {neighbor_ref} relative to {target_ref}. Valid answers: {choice_list}."
+    "Describe the seam-aware direction of {neighbor_ref} relative to {target_ref}. Valid answers: {choice_list}.",
+    "Treating the panorama boundary as continuous, how should {neighbor_ref} be positioned relative to {target_ref}: {choice_list}?"
   ],
   "seam_continuity.dedup_count": [
     "The left-edge and right-edge visible parts of {target_ref} should be counted as: {choice_list}.",
@@ -224,17 +234,20 @@
   "seam_continuity.structure_continuity": [
     "For the {target_ref} touching both image sides, which explanation is more reasonable: {choice_list}?",
     "For the boundary-touching {target_ref}, which structural interpretation is most reasonable: {choice_list}?",
-    "Describe the most reasonable 360-structure interpretation of the boundary-touching {target_ref}. Valid answers: {choice_list}."
+    "Describe the most reasonable 360-structure interpretation of the boundary-touching {target_ref}. Valid answers: {choice_list}.",
+    "Which listed interpretation best preserves the full 360 structural continuity of {target_ref}: {choice_list}?"
   ],
   "seam_continuity.same_entity_judgement": [
     "The left-edge and right-edge appearances of {target_ref} are best described as: {choice_list}.",
     "How should the left-side and right-side appearances of {target_ref} be interpreted: {choice_list}?",
-    "Explain how the two boundary appearances of {target_ref} should be interpreted. Choose from: {choice_list}."
+    "Explain how the two boundary appearances of {target_ref} should be interpreted. Choose from: {choice_list}.",
+    "Which interpretation best matches the two boundary fragments of {target_ref}: {choice_list}?"
   ],
   "polar_distortion_awareness.shape_direct": [
     "What is the true shape of the {target_label} at {target_locator}?",
     "Ignoring ERP stretching, what shape should the {target_label} at {target_locator} be recognized as?",
-    "Identify the real shape of the {target_label} located at {target_locator}."
+    "Identify the real shape of the {target_label} located at {target_locator}.",
+    "Give the actual shape label of the {target_label} at {target_locator}."
   ],
   "polar_distortion_awareness.shape_distortion_aware": [
     "Near the ERP pole, the {target_label} at {target_locator} may look warped. What is its true shape?",
@@ -248,14 +261,18 @@
     "Name the candidate whose geometry best matches the high-latitude {target_label} at {target_locator}. Candidates: {choice_list}.",
     "From the following candidates, which one best matches the true shape of the {target_label} at {target_locator}: {choice_list}?",
     "Answer with the candidate that best preserves the real geometry of the {target_label} at {target_locator}: {choice_list}.",
-    "Select the geometry-matching candidate for the high-latitude {target_label} at {target_locator}: {choice_list}."
+    "Select the geometry-matching candidate for the high-latitude {target_label} at {target_locator}: {choice_list}.",
+    "Which candidate should be chosen as the best geometry match for the high-latitude {target_label} at {target_locator}: {choice_list}?",
+    "Return only the candidate whose real geometry best matches the high-latitude {target_label} at {target_locator}: {choice_list}."
   ],
   "polar_distortion_awareness.cross_latitude_matching": [
     "Which listed object best matches the real geometry of the high-latitude {target_label} at {target_locator}: {choice_list}?",
     "Ignoring ERP distortion, which candidate most plausibly shares the true geometry of the high-latitude {target_label} at {target_locator}: {choice_list}?",
     "Choose the low-latitude object whose geometry best matches the distorted high-latitude {target_label} at {target_locator}: {choice_list}.",
     "Answer with the candidate whose real geometry best matches the high-latitude {target_label} at {target_locator}: {choice_list}.",
-    "From the listed candidates, identify the low-latitude object that matches the true shape of the {target_label} at {target_locator}: {choice_list}."
+    "From the listed candidates, identify the low-latitude object that matches the true shape of the {target_label} at {target_locator}: {choice_list}.",
+    "Which low-latitude candidate should be selected as the true-geometry match for the high-latitude {target_label} at {target_locator}: {choice_list}?",
+    "Return only the low-latitude object whose real geometry best matches the high-latitude {target_label} at {target_locator}: {choice_list}."
   ],
   "polar_distortion_awareness.size": [],
   "polar_distortion_awareness.volume": []

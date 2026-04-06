@@ -135,7 +135,9 @@
     "The nearest object in the candidate set is {label}.",
     "Answer: {label}.",
     "{label} is the best choice.",
-    "Choose {label}."
+    "Choose {label}.",
+    "Nearest: {label}.",
+    "Select {label}."
   ],
   "distance_estimation.observer_choice": [
     "{label}",
@@ -144,7 +146,9 @@
     "Among the listed options, {label} is closest to the viewer.",
     "Answer: {label}.",
     "The nearest listed object is {label}.",
-    "Choose {label} as the closest one."
+    "Choose {label} as the closest one.",
+    "Nearest to the observer: {label}.",
+    "Select {label}."
   ],
   "relative_3d_position": [
     "{relation}",
@@ -169,7 +173,9 @@
     "Relative to the other object in camera space, {relation} is the correct choice.",
     "Answer: {relation}.",
     "Choose {relation}.",
-    "{relation} is the best option here."
+    "{relation} is the best option here.",
+    "Select {relation}.",
+    "Best match: {relation}."
   ],
   "seam_continuity.choice": [
     "{answer}",
@@ -177,7 +183,9 @@
     "The correct choice is {answer}.",
     "Answer: {answer}.",
     "A seam-aware interpretation is {answer}.",
-    "Treat it as {answer}."
+    "Treat it as {answer}.",
+    "Best seam-aware answer: {answer}.",
+    "Use {answer}."
   ],
   "polar_distortion_awareness.shape": [
     "{shape}",
@@ -185,7 +193,9 @@
     "The object should be recognized as {shape} in shape.",
     "Answer: {shape}.",
     "Its real geometry is {shape}.",
-    "The true shape label is {shape}."
+    "The true shape label is {shape}.",
+    "Recognize it as {shape}.",
+    "Shape: {shape}."
   ],
   "polar_distortion_awareness.candidate": [
     "{candidate}",
@@ -193,6 +203,8 @@
     "The correct match is {candidate}.",
     "Answer: {candidate}.",
     "Choose {candidate}.",
-    "{candidate} is the best geometry match."
+    "{candidate} is the best geometry match.",
+    "Select {candidate}.",
+    "Best match: {candidate}."
   ]
 }

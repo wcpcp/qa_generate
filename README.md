@@ -30,6 +30,10 @@
 
 ## 当前原则
 
+任务族、generation mode、question / answer 模板族和 LLM 后处理模式的汇总表见：
+
+- [docs/task_template_matrix.md](/Users/wcp/code/qa_generate/docs/task_template_matrix.md)
+
 ### 1. canonical 层负责真值
 
 [generate_canonical_samples.py](/Users/wcp/code/erp_data_pipeline/data_generation/scripts/generate_canonical_samples.py)
